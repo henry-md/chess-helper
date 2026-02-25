@@ -1,5 +1,5 @@
 import { ToastContainer, toast } from "react-toastify";
-import Navbar from "../components/navbar";
+import Navbar from "../components/Navbar";
 import BoardPreview from "../components/board-preview";
 import { useStore } from "@nanostores/react";
 import { $user } from "@/store/user";

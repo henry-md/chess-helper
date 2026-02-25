@@ -4,7 +4,7 @@ import { findNumMovesToFirstBranch, moveTextToMainlines } from "@/utils/chess/pg
 import { setMainlines, setNumMovesToFirstBranch } from "@/store/game-core";
 import { $pgn, setPgn } from "@/store/pgn";
 import { StoredPgn } from "@/lib/types";
-import Navbar from "../components/navbar";
+import Navbar from "../components/Navbar";
 import ChessApp from "../components/chess-app";
 
 const Tutorial = () => {
