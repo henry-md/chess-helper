@@ -3,7 +3,7 @@ import { TUTORIAL_PGN } from "@/constants";
 import { $pgn, setPgn } from "@/store/pgn";
 import { StoredPgn } from "@/lib/types";
 import Navbar from "../components/Navbar";
-import ChessApp from "../components/chess-app";
+import ChessApp from "../components/ChessApp";
 
 const Tutorial = () => {
   useEffect(() => {

@@ -9,7 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { StoredPgn } from "@/lib/types";
-import useMutationPgns from "@/hooks/use-mutation-pgns";
+import useMutationPgns from "@/hooks/useMutationPgns";
 
 type DeletePgnDialogProps = {
   pgn: StoredPgn;

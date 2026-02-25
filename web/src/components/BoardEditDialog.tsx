@@ -11,46 +11,51 @@ import {
 } from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import useMutationPgns from "@/hooks/use-mutation-pgns";
+import { StoredPgn } from "@/lib/types";
+import useMutationPgns from "@/hooks/useMutationPgns";
+// import { triggerPgnsRefresh } from "@/store/pgn";
+import logger from "@/utils/logger";
 
-type AddPgnDialogProps = {
+type EditPgnDialogProps = {
+  pgn: StoredPgn;
   open: boolean;
-  setAddDialogOpen: (open: boolean) => void;
+  setEditDialogOpen: (open: boolean) => void;
 };
 
-const AddPgnDialog = ({ open, setAddDialogOpen }: AddPgnDialogProps) => {
-  const [title, setTitle] = useState("");
-  const [moveText, setMoveText] = useState("");
-  const [notes, setNotes] = useState("");
-  const { createPgn } = useMutationPgns();
+const EditPgnDialog = ({ pgn, open, setEditDialogOpen }: EditPgnDialogProps) => {
+  const [title, setTitle] = useState(pgn.title);
+  const [moveText, setMoveText] = useState(pgn.moveText);
+  const [notes, setNotes] = useState(pgn.notes);
+  const { updatePgnContent } = useMutationPgns();
 
   // Reset values when dialog is closed
   useEffect(() => {
     if (!open) {
-      setTitle("");
-      setMoveText("");
-      setNotes("");
+      setTitle(pgn.title);
+      setMoveText(pgn.moveText);
+      setNotes(pgn.notes);
     }
-  }, [open]);
+  }, [open, pgn]);
 
   const handleSave = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    logger.debug(`[handleSave] Saving PGN ${pgn._id} with title ${title} and pgn ${moveText} and notes ${notes}`);
     e.preventDefault();
     if (title.length === 0 || moveText.length === 0) {
       toast.error("Sorry! Title and PGN cannot be empty 😕");
     } else {
-      await createPgn({ title, moveText, notes });
+      await updatePgnContent(pgn._id, { title, moveText, notes });
       // triggerPgnsRefresh();
-      setAddDialogOpen(false);
+      setEditDialogOpen(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setAddDialogOpen}>
+    <Dialog open={open} onOpenChange={setEditDialogOpen}>
       <DialogContent>
         <form className="grid w-full gap-1.5 p-1 pr-3">
-          <DialogTitle>Add PGN</DialogTitle>
+          <DialogTitle>Edit PGN</DialogTitle>
           <DialogDescription>
-            Add the title, PGN, and notes of your study here.
+            Edit the title, PGN, and notes of your study here.
           </DialogDescription>
           <div className="grid items-center grid-cols-4 gap-8 my-4">
             <Label htmlFor="title" className="text-sm text-right">
@@ -84,7 +89,7 @@ const AddPgnDialog = ({ open, setAddDialogOpen }: AddPgnDialogProps) => {
           <div className="flex justify-end gap-3">
             <DialogClose asChild>
               <Button
-                onClick={() => setAddDialogOpen(false)}
+                onClick={() => setEditDialogOpen(false)}
                 type="button"
                 variant={"secondary"}
               >
@@ -101,4 +106,4 @@ const AddPgnDialog = ({ open, setAddDialogOpen }: AddPgnDialogProps) => {
   );
 };
 
-export default AddPgnDialog;
+export default EditPgnDialog;

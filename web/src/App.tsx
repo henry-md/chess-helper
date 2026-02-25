@@ -1,13 +1,13 @@
 import { Route, Routes } from "react-router-dom";
 import "react-toastify/dist/ReactToastify.css";
 import { useEffect, useMemo } from "react";
-import useAuth from "@/hooks/use-auth";
+import useAuth from "@/hooks/useAuth";
 import { $isAuthenticated, setIsAuthenticated } from "./store/auth";
 import { useStore } from "@nanostores/react";
-import Game from "./pages/game";
+import Game from "./pages/Game";
 
 // Pages
-import Tutorial from "./pages/tutorial";
+import Tutorial from "./pages/Tutorial";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";

@@ -1,24 +1,24 @@
-import { API_URL } from "@/env";
 import { StoredPgn } from "@/lib/types";
-import { $isSkipping, setIsSkippingStore } from "@/store/chess-settings";
+import { $isPlayingWhite, setIsPlayingWhiteStore } from "@/store/chessSettings";
 import { getAuthHeader } from "@/utils/auth";
 import { useStore } from "@nanostores/react";
 import { toast } from "react-toastify";
+import { API_URL } from "@/env";
 
-type UseSkippingOptions = {
+type UsePlayingColorOptions = {
   persistRemotely?: boolean;
 };
 
-const useSkipping = (pgn: StoredPgn, options: UseSkippingOptions = {}) => {
-  const isSkipping = useStore($isSkipping);
+const usePlayingColor = (pgn: StoredPgn, options: UsePlayingColorOptions = {}) => {
+  const isPlayingWhite = useStore($isPlayingWhite);
   const persistRemotely = options.persistRemotely ?? true;
 
   const shouldSkipRemoteUpdate =
     !persistRemotely || pgn._id === "tutorial" || pgn.userId === "tutorial";
 
-  const setIsSkipping = async (value: boolean) => {
-    const previousValue = isSkipping;
-    setIsSkippingStore(value);
+  const setIsPlayingWhite = async (value: boolean) => {
+    const previousValue = isPlayingWhite;
+    setIsPlayingWhiteStore(value);
 
     if (shouldSkipRemoteUpdate) {
       return;
@@ -27,7 +27,7 @@ const useSkipping = (pgn: StoredPgn, options: UseSkippingOptions = {}) => {
     try {
       const body = {
         gameSettings: {
-          isSkipping: value,
+          isPlayingWhite: value,
         },
       };
       const response = await fetch(`${API_URL}/pgn/${pgn._id}`, {
@@ -39,16 +39,16 @@ const useSkipping = (pgn: StoredPgn, options: UseSkippingOptions = {}) => {
         body: JSON.stringify(body),
       });
       if (!response.ok) {
-        setIsSkippingStore(previousValue);
+        setIsPlayingWhiteStore(previousValue);
         toast.error("Error updating PGN");
       }
     } catch {
-      setIsSkippingStore(previousValue);
+      setIsPlayingWhiteStore(previousValue);
       toast.error("Error updating PGN");
     }
   };
 
-  return { isSkipping, setIsSkipping };
+  return { isPlayingWhite, setIsPlayingWhite };
 };
 
-export default useSkipping;
+export default usePlayingColor;

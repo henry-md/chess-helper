@@ -1,16 +1,16 @@
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import ChessApp from "../components/chess-app";
+import ChessApp from "../components/ChessApp";
 import { useStore } from "@nanostores/react";
 import { $pgnDict, setPgn } from "../store/pgn";
 import { API_URL } from "@/env";
 import { getAuthHeader } from "@/utils/auth";
-import { setCurrentPgnId } from "../store/game-core";
-import { setCurrentLine, setCurrentLineIdx } from "../store/game-core";
+import { setCurrentPgnId } from "../store/gameCore";
+import { setCurrentLine, setCurrentLineIdx } from "../store/gameCore";
 import { StoredPgn } from "@/lib/types";
-import { setGameOver } from "../store/game-core";
-import { setIsPlayingWhiteStore, setIsSkippingStore } from "@/store/chess-settings";
+import { setGameOver } from "../store/gameCore";
+import { setIsPlayingWhiteStore, setIsSkippingStore } from "@/store/chessSettings";
 
 const Game = () => {
   const { id } = useParams();

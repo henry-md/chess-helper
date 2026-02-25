@@ -1,11 +1,11 @@
 import { ToastContainer, toast } from "react-toastify";
 import Navbar from "../components/Navbar";
-import BoardPreview from "../components/board-preview";
+import BoardPreview from "../components/BoardPreview";
 import { useStore } from "@nanostores/react";
 import { $user } from "@/store/user";
 import { useEffect, useState } from "react";
-import useQueryPgns from "@/hooks/use-query-pgns";
-import AddPgnDialog from "@/components/board-add-dialog";
+import useQueryPgns from "@/hooks/useQueryPgns";
+import AddPgnDialog from "@/components/BoardAddDialog";
 import { StoredPgn } from "@/lib/types";
 import { $isAuthenticated } from "@/store/auth";
 

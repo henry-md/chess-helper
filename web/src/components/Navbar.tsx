@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useStore } from '@nanostores/react';
-import useAuth from "@/hooks/use-auth.jsx";
+import useAuth from "@/hooks/useAuth";
 import { $isAuthenticated } from '@/store/auth';
 
 const Navbar = () => {

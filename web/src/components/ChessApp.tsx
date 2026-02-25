@@ -5,16 +5,16 @@ import { faToggleOn, faToggleOff } from '@fortawesome/free-solid-svg-icons'
 import { useStore } from '@nanostores/react'
 import { cn } from '@/lib/utils'
 import { NODE_ENV } from "@/env";
-import EditPgnDialog from '@/components/board-edit-dialog';
+import EditPgnDialog from '@/components/BoardEditDialog';
 import { StoredPgn } from '@/lib/types';
 import { $pgn } from '@/store/pgn';
 import { toast } from 'react-toastify';
-import useLineQuizSession from "@/hooks/game/use-line-quiz-session";
-import LessonCompleteCelebration from "@/components/lesson-complete-celebration";
+import useLineQuizSession from "@/hooks/game/useLineQuizSession";
+import LessonCompleteCelebration from "@/components/LessonCompleteCelebration";
 
 // Custom hooks for game state
-import useSkipping from '@/hooks/game/use-skipping';
-import usePlayingColor from '@/hooks/game/use-playing-color';
+import useSkipping from '@/hooks/game/useSkipping';
+import usePlayingColor from '@/hooks/game/usePlayingColor';
 
 const debug = NODE_ENV === "development";
 

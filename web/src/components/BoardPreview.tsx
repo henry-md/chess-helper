@@ -2,8 +2,8 @@ import { faPenToSquare } from '@fortawesome/free-solid-svg-icons';
 import { faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Chessboard } from "react-chessboard";
-import EditPgnDialog from './board-edit-dialog';
-import DeletePgnDialog from './board-delete-dialog';
+import EditPgnDialog from './BoardEditDialog';
+import DeletePgnDialog from './BoardDeleteDialog';
 import { useState } from 'react';
 import { StoredPgn } from '@/lib/types';
 
