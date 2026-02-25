@@ -1,21 +1,18 @@
 import { Chessboard } from "react-chessboard";
-import { CSSProperties } from "react";
 
 interface BoardProps {
   currFen: string;
   onPieceDrop: (sourceSquare: string, targetSquare: string) => boolean;
   isWhite: boolean;
-  highlightSquareStyles?: Record<string, CSSProperties>;
 }
 
-const Board = ({ currFen, onPieceDrop, isWhite, highlightSquareStyles }: BoardProps) => {
+const Board = ({ currFen, onPieceDrop, isWhite }: BoardProps) => {
   return (
     <Chessboard
       id="BasicBoard"
       arePiecesDraggable={true}
       position={currFen}
       onPieceDrop={onPieceDrop}
-      customSquareStyles={highlightSquareStyles}
       boardOrientation={isWhite ? 'white' : 'black'}
       customDarkSquareStyle={{ backgroundColor: 'var(--board-dark)' }}
       customLightSquareStyle={{ backgroundColor: 'var(--board-light)' }}

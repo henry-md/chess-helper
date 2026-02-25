@@ -1,4 +1,4 @@
-import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RefObject, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Board from '@/components/Board';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faToggleOn, faToggleOff } from '@fortawesome/free-solid-svg-icons'
@@ -30,11 +30,23 @@ type GuidedMove = {
   instructionPrefix: string;
 };
 
+type TutorialMoveContext = {
+  moveIndex: number;
+  san: string;
+  sourceSquare: string;
+  targetSquare: string;
+  instructionPrefix: string;
+};
+
+type SpotlightHole = {
+  x: number;
+  y: number;
+  size: number;
+};
+
 type SpotlightLayout = {
   boardSize: number;
-  holeX: number;
-  holeY: number;
-  holeSize: number;
+  holes: SpotlightHole[];
   noteLeft: number;
   noteTop: number;
   noteWidth: number;
@@ -46,7 +58,9 @@ type HighlightedTextSegment = {
   isHighlighted: boolean;
 };
 
-const stripMoveAnnotation = (token: string): string => token.replace(/[!?+#]+$/g, "");
+const stripMoveAnnotation = (token: string): string =>
+  token.replace(/^[([{]+/, "").replace(/[)\]}]+$/, "").replace(/[!?+#]+$/g, "");
+const normalizeFen = (fen: string): string => fen.split(" ").slice(0, 4).join(" ");
 
 const getSquareTopLeft = (
   square: string,
@@ -81,6 +95,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   const pgn: StoredPgn | null = useStore($pgn);
   
   if (!pgn) return <div>Loading...</div>;
+  const spotlightMaskId = useId().replace(/:/g, "");
 
   const boardRef = useRef<HTMLDivElement>(null);
   const tutorialPgnRef = useRef<HTMLDivElement>(null);
@@ -114,6 +129,11 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   const [hasCompletedGuidedFirstLine, setHasCompletedGuidedFirstLine] = useState(false);
   const [hasDismissedPracticePopup, setHasDismissedPracticePopup] = useState(false);
   const [isPracticePopupVisible, setIsPracticePopupVisible] = useState(false);
+  const [isBranchPopupVisible, setIsBranchPopupVisible] = useState(false);
+  const [branchHighlightsDismissedCount, setBranchHighlightsDismissedCount] = useState(0);
+  const [branchPopupPositionKey, setBranchPopupPositionKey] = useState<string | null>(null);
+  const [branchPopupIsUsersTurn, setBranchPopupIsUsersTurn] = useState(false);
+  const latestBranchOccurrenceKeyRef = useRef<string | null>(null);
   const {
     currFen,
     isAutoPlaying,
@@ -132,22 +152,62 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     moveText: pgn.moveText,
     isPlayingWhite,
     isSkipping,
+    isPaused: isPracticePopupVisible || isBranchPopupVisible,
+    randomizeOpponentBranchMoves: isTutorial,
     manualLineAdvance: isTutorial,
     onSessionComplete: () => toast.success("Game completed!"),
   });
 
-  const tutorialFirstLineMoves = useMemo<string[]>(() => {
+  const tutorialMainlineMoves = useMemo<string[][]>(() => {
     if (!isTutorial) {
       return [];
     }
 
-    const firstMainline = moveTextToMainlines(pgn.moveText)[0];
-    if (!firstMainline) {
-      return [];
+    return moveTextToMainlines(pgn.moveText).map((line) => line.split(/\s+/).filter(Boolean));
+  }, [isTutorial, pgn.moveText]);
+
+  const tutorialFirstLineMoves = tutorialMainlineMoves[0] ?? [];
+
+  const branchMoveOptionsByPosition = useMemo<Map<string, string[]>>(() => {
+    if (!isTutorial || tutorialMainlineMoves.length <= 1) {
+      return new Map();
     }
 
-    return firstMainline.split(/\s+/).filter(Boolean);
-  }, [isTutorial, pgn.moveText]);
+    const positionToMoves = new Map<string, Set<string>>();
+
+    for (const lineMoves of tutorialMainlineMoves) {
+      const chess = new Chess();
+      for (let moveIndex = 0; moveIndex < lineMoves.length; moveIndex++) {
+        const positionKey = `${moveIndex}|${normalizeFen(chess.fen())}`;
+        const nextSan = lineMoves[moveIndex];
+
+        let candidateMoves = positionToMoves.get(positionKey);
+        if (!candidateMoves) {
+          candidateMoves = new Set<string>();
+          positionToMoves.set(positionKey, candidateMoves);
+        }
+        candidateMoves.add(nextSan);
+
+        if (!chess.move(nextSan)) {
+          break;
+        }
+      }
+    }
+
+    const branchOptions = new Map<string, string[]>();
+    for (const [positionKey, candidateMoves] of positionToMoves.entries()) {
+      if (candidateMoves.size > 1) {
+        branchOptions.set(positionKey, Array.from(candidateMoves));
+      }
+    }
+
+    return branchOptions;
+  }, [isTutorial, tutorialMainlineMoves]);
+
+  const branchPositionKeys = useMemo<Set<string>>(
+    () => new Set(branchMoveOptionsByPosition.keys()),
+    [branchMoveOptionsByPosition]
+  );
 
   const tutorialGuidedMoves = useMemo<GuidedMove[]>(() => {
     if (!isTutorial || tutorialFirstLineMoves.length === 0) {
@@ -205,6 +265,11 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     setHasCompletedGuidedFirstLine(false);
     setHasDismissedPracticePopup(false);
     setIsPracticePopupVisible(false);
+    setIsBranchPopupVisible(false);
+    setBranchHighlightsDismissedCount(0);
+    setBranchPopupPositionKey(null);
+    setBranchPopupIsUsersTurn(false);
+    latestBranchOccurrenceKeyRef.current = null;
   }, [isTutorial, pgn.moveText]);
 
   useEffect(() => {
@@ -216,6 +281,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
 
   const isTutorialMoveGuideActive =
     isTutorial && tutorialTourComplete && !hasCompletedGuidedFirstLine && !isCompleted;
+  const isTutorialBranchGuideActive = isTutorial && tutorialTourComplete && !isCompleted;
   const showTutorialLineAdvancePrompt =
     isTutorial && tutorialTourComplete && isAwaitingLineAdvance && !isCompleted;
   const nextMoveIndex = currentMoveIndex + 1;
@@ -228,6 +294,14 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     isUsersTurnByIndex &&
     firstUnguidedUserMoveIndex !== null &&
     nextMoveIndex === firstUnguidedUserMoveIndex;
+  const currentBranchPositionKey = `${nextMoveIndex}|${normalizeFen(currFen)}`;
+  const currentBranchOccurrenceKey =
+    isTutorialBranchGuideActive &&
+    !isAwaitingLineAdvance &&
+    !isPracticePopupVisible &&
+    branchPositionKeys.has(currentBranchPositionKey)
+      ? currentBranchPositionKey
+      : null;
 
   const activeGuidedMove = useMemo<GuidedMove | null>(() => {
     if (!isTutorialMoveGuideActive || !isUsersTurnByIndex || isAwaitingLineAdvance) {
@@ -237,9 +311,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     return tutorialGuidedMoves.find((guidedMove) => guidedMove.moveIndex === nextMoveIndex) ?? null;
   }, [isAwaitingLineAdvance, isTutorialMoveGuideActive, isUsersTurnByIndex, nextMoveIndex, tutorialGuidedMoves]);
 
-  const activeGuidedMoveContext = useMemo<
-    (GuidedMove & { sourceSquare: string; targetSquare: string }) | null
-  >(() => {
+  const activeGuidedMoveContext = useMemo<TutorialMoveContext | null>(() => {
     if (!activeGuidedMove) {
       return null;
     }
@@ -257,7 +329,133 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     };
   }, [activeGuidedMove, currFen]);
 
-  const highlightedPgnMoveSan = activeGuidedMoveContext?.san ?? null;
+  const currentBranchMoveContexts = useMemo<TutorialMoveContext[]>(() => {
+    if (!currentBranchOccurrenceKey) {
+      return [];
+    }
+
+    const branchMoveSans = branchMoveOptionsByPosition.get(currentBranchOccurrenceKey) ?? [];
+    return branchMoveSans.flatMap((san) => {
+      const previewChess = new Chess(currFen);
+      const previewMove = previewChess.move(san);
+      if (!previewMove) {
+        return [];
+      }
+
+      return [
+        {
+          moveIndex: nextMoveIndex,
+          san,
+          sourceSquare: previewMove.from,
+          targetSquare: previewMove.to,
+          instructionPrefix: isUsersTurnByIndex ? "Play" : "Watch for",
+        },
+      ];
+    });
+  }, [
+    branchMoveOptionsByPosition,
+    currFen,
+    currentBranchOccurrenceKey,
+    isUsersTurnByIndex,
+    nextMoveIndex,
+  ]);
+
+  const branchPopupMoveContexts = useMemo<TutorialMoveContext[]>(() => {
+    if (!isBranchPopupVisible || !branchPopupPositionKey) {
+      return [];
+    }
+
+    const branchMoveSans = branchMoveOptionsByPosition.get(branchPopupPositionKey) ?? [];
+    const parsedMoveIndex = Number.parseInt(branchPopupPositionKey.split("|")[0] ?? "", 10);
+    const popupMoveIndex = Number.isNaN(parsedMoveIndex) ? nextMoveIndex : parsedMoveIndex;
+
+    return branchMoveSans.flatMap((san) => {
+      const previewChess = new Chess(currFen);
+      const previewMove = previewChess.move(san);
+      if (!previewMove) {
+        return [];
+      }
+
+      return [
+        {
+          moveIndex: popupMoveIndex,
+          san,
+          sourceSquare: previewMove.from,
+          targetSquare: previewMove.to,
+          instructionPrefix: branchPopupIsUsersTurn ? "Play" : "Watch for",
+        },
+      ];
+    });
+  }, [
+    branchMoveOptionsByPosition,
+    branchPopupIsUsersTurn,
+    branchPopupPositionKey,
+    currFen,
+    isBranchPopupVisible,
+    nextMoveIndex,
+  ]);
+
+  const activeSpotlightMoveContexts = useMemo<TutorialMoveContext[]>(() => {
+    if (isBranchPopupVisible) {
+      return branchPopupMoveContexts;
+    }
+
+    if (activeGuidedMoveContext) {
+      return [activeGuidedMoveContext];
+    }
+
+    return [];
+  }, [activeGuidedMoveContext, branchPopupMoveContexts, isBranchPopupVisible]);
+
+  const activeSpotlightMoveContext = isBranchPopupVisible ? null : activeGuidedMoveContext;
+  const branchPopupOptionCount = branchPopupMoveContexts.length;
+  const branchPopupTitle =
+    branchHighlightsDismissedCount === 0 ? "Branching move" : "Branching move again";
+  const branchPopupMessage = useMemo(() => {
+    if (branchPopupOptionCount === 0) {
+      return "";
+    }
+
+    const isFirstBranchPopup = branchHighlightsDismissedCount === 0;
+    const remainingOptions = Math.max(branchPopupOptionCount - 1, 0);
+    const remainingOptionsLabel =
+      remainingOptions === 1 ? "the remaining move" : `the remaining ${remainingOptions} moves`;
+
+    if (branchPopupIsUsersTurn) {
+      if (isFirstBranchPopup) {
+        if (branchPopupOptionCount > 2) {
+          return `The PGN branches here into ${branchPopupOptionCount} options for you. Play any highlighted move now, and we will return for the others.`;
+        }
+        return "The PGN branches here into 2 options for you. Play either highlighted move now, then play the other one next time.";
+      }
+
+      if (branchPopupOptionCount > 2) {
+        return `You are back at the same branch. Choose a different highlighted move this time to cover ${remainingOptionsLabel}.`;
+      }
+      return "You are back at the same branch. Choose the other highlighted move this time so both lines are covered.";
+    }
+
+    if (isFirstBranchPopup) {
+      if (branchPopupOptionCount > 2) {
+        return `The PGN branches here into ${branchPopupOptionCount} opponent options. Your opponent can play any highlighted move, and one will be selected at random each time.`;
+      }
+      return "The PGN branches here into 2 opponent options. Your opponent can play either highlighted move, and one will be selected at random.";
+    }
+
+    if (branchPopupOptionCount > 2) {
+      return `You are seeing this branch again. Your opponent may randomly choose from ${remainingOptionsLabel}.`;
+    }
+    return "You are seeing this branch again. Your opponent may randomly choose the other highlighted move.";
+  }, [branchHighlightsDismissedCount, branchPopupIsUsersTurn, branchPopupOptionCount]);
+
+  const highlightedBranchSans = useMemo<Set<string> | null>(() => {
+    if (!isBranchPopupVisible || branchPopupMoveContexts.length === 0) {
+      return null;
+    }
+
+    return new Set(branchPopupMoveContexts.map((context) => context.san));
+  }, [branchPopupMoveContexts, isBranchPopupVisible]);
+  const highlightedPgnMoveSan = activeSpotlightMoveContext?.san ?? null;
 
   const tutorialPgnSegments = useMemo<HighlightedTextSegment[]>(() => {
     const moveText = pgn?.moveText || "";
@@ -267,14 +465,25 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
 
     const tokens = moveText.split(/(\s+)/);
     let hasHighlightedToken = false;
+    const unmatchedBranchSans = highlightedBranchSans ? new Set(highlightedBranchSans) : null;
 
     return tokens.map((token, index) => {
       const isWhitespace = token.trim().length === 0;
-      const isHighlightMatch =
+      const sanitizedToken = stripMoveAnnotation(token);
+      let isHighlightMatch = false;
+
+      if (!isWhitespace && unmatchedBranchSans && unmatchedBranchSans.has(sanitizedToken)) {
+        isHighlightMatch = true;
+        unmatchedBranchSans.delete(sanitizedToken);
+      } else if (
         !isWhitespace &&
+        !unmatchedBranchSans &&
         !hasHighlightedToken &&
         highlightedPgnMoveSan !== null &&
-        stripMoveAnnotation(token) === highlightedPgnMoveSan;
+        sanitizedToken === highlightedPgnMoveSan
+      ) {
+        isHighlightMatch = true;
+      }
 
       if (isHighlightMatch) {
         hasHighlightedToken = true;
@@ -286,24 +495,33 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
         isHighlighted: isHighlightMatch,
       };
     });
-  }, [highlightedPgnMoveSan, isTutorial, pgn?.moveText]);
+  }, [highlightedBranchSans, highlightedPgnMoveSan, isTutorial, pgn?.moveText]);
 
   const isTutorialInteractionLocked =
-    isTutorialMoveGuideActive || showTutorialLineAdvancePrompt || isPracticePopupVisible;
+    isTutorialMoveGuideActive ||
+    showTutorialLineAdvancePrompt ||
+    isPracticePopupVisible ||
+    isBranchPopupVisible;
 
   const handlePieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string) => {
-      if (isPracticePopupVisible) {
+      if (isPracticePopupVisible || isBranchPopupVisible) {
         return false;
       }
       return onPieceDrop(sourceSquare, targetSquare);
     },
-    [isPracticePopupVisible, onPieceDrop]
+    [isBranchPopupVisible, isPracticePopupVisible, onPieceDrop]
   );
 
   const dismissPracticePopup = useCallback(() => {
     setIsPracticePopupVisible(false);
     setHasDismissedPracticePopup(true);
+  }, []);
+
+  const dismissBranchPopup = useCallback(() => {
+    setIsBranchPopupVisible(false);
+    setBranchHighlightsDismissedCount((count) => count + 1);
+    setBranchPopupPositionKey(null);
   }, []);
 
   useEffect(() => {
@@ -313,6 +531,32 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
 
     setIsPracticePopupVisible(true);
   }, [shouldPromptPracticeFromPgn]);
+
+  useEffect(() => {
+    if (!currentBranchOccurrenceKey || currentBranchMoveContexts.length === 0) {
+      latestBranchOccurrenceKeyRef.current = null;
+      return;
+    }
+
+    if (latestBranchOccurrenceKeyRef.current === currentBranchOccurrenceKey) {
+      return;
+    }
+    latestBranchOccurrenceKeyRef.current = currentBranchOccurrenceKey;
+
+    if (branchHighlightsDismissedCount >= 2 || isBranchPopupVisible) {
+      return;
+    }
+
+    setBranchPopupPositionKey(currentBranchOccurrenceKey);
+    setBranchPopupIsUsersTurn(isUsersTurnByIndex);
+    setIsBranchPopupVisible(true);
+  }, [
+    branchHighlightsDismissedCount,
+    currentBranchMoveContexts.length,
+    currentBranchOccurrenceKey,
+    isBranchPopupVisible,
+    isUsersTurnByIndex,
+  ]);
 
   useEffect(() => {
     if (!isTutorialMoveGuideActive) {
@@ -377,8 +621,8 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     };
   }, []);
 
-  const tutorialPawnSpotlightLayout = useMemo<SpotlightLayout | null>(() => {
-    if (!activeGuidedMoveContext) {
+  const tutorialSpotlightLayout = useMemo<SpotlightLayout | null>(() => {
+    if (activeSpotlightMoveContexts.length === 0) {
       return null;
     }
 
@@ -388,31 +632,43 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     }
 
     const squareSize = boardSize / 8;
-    const squareTopLeft = getSquareTopLeft(activeGuidedMoveContext.sourceSquare, isPlayingWhite, squareSize);
-    if (!squareTopLeft) {
+    const sourceSquares = Array.from(new Set(activeSpotlightMoveContexts.map((context) => context.sourceSquare)));
+    const holeSize = squareSize;
+    const holes = sourceSquares.flatMap((sourceSquare) => {
+      const squareTopLeft = getSquareTopLeft(sourceSquare, isPlayingWhite, squareSize);
+      if (!squareTopLeft) {
+        return [];
+      }
+
+      return [
+        {
+          x: squareTopLeft.x,
+          y: squareTopLeft.y,
+          size: holeSize,
+        },
+      ];
+    });
+
+    if (holes.length === 0) {
       return null;
     }
 
-    const holeSize = Math.min(squareSize - 4, Math.max(28, squareSize * 0.86));
-    const holeX = squareTopLeft.x + (squareSize - holeSize) / 2;
-    const holeY = squareTopLeft.y + (squareSize - holeSize) / 2;
+    const primaryHole = holes[0];
     const noteWidth = Math.min(220, Math.max(156, boardSize * 0.32));
-    let noteLeft = holeX + holeSize + 12;
+    let noteLeft = primaryHole.x + primaryHole.size + 12;
     if (noteLeft + noteWidth > boardSize - 8) {
-      noteLeft = holeX - noteWidth - 12;
+      noteLeft = primaryHole.x - noteWidth - 12;
     }
-    const noteTop = Math.max(8, Math.min(boardSize - 56, holeY + holeSize / 2 - 20));
+    const noteTop = Math.max(8, Math.min(boardSize - 56, primaryHole.y + primaryHole.size / 2 - 20));
 
     return {
       boardSize,
-      holeX,
-      holeY,
-      holeSize,
+      holes,
       noteLeft,
       noteTop,
       noteWidth,
     };
-  }, [activeGuidedMoveContext, boardFrame.height, boardFrame.width, isPlayingWhite]);
+  }, [activeSpotlightMoveContexts, boardFrame.height, boardFrame.width, isPlayingWhite]);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -459,67 +715,57 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               onComplete={() => setTutorialTourComplete(true)}
             />
           )}
-          {tutorialPawnSpotlightLayout && (
+          {tutorialSpotlightLayout && (
             <div className="absolute inset-0 pointer-events-none tutorial-pawn-spotlight-layer" aria-hidden="true">
-              <div
-                className="tutorial-pawn-spotlight-mask"
-                style={{ left: 0, top: 0, width: "100%", height: tutorialPawnSpotlightLayout.holeY }}
-              />
-              <div
-                className="tutorial-pawn-spotlight-mask"
-                style={{
-                  left: 0,
-                  top: tutorialPawnSpotlightLayout.holeY,
-                  width: tutorialPawnSpotlightLayout.holeX,
-                  height: tutorialPawnSpotlightLayout.holeSize,
-                }}
-              />
-              <div
-                className="tutorial-pawn-spotlight-mask"
-                style={{
-                  left: tutorialPawnSpotlightLayout.holeX + tutorialPawnSpotlightLayout.holeSize,
-                  top: tutorialPawnSpotlightLayout.holeY,
-                  width: Math.max(
-                    0,
-                    tutorialPawnSpotlightLayout.boardSize -
-                      (tutorialPawnSpotlightLayout.holeX + tutorialPawnSpotlightLayout.holeSize)
-                  ),
-                  height: tutorialPawnSpotlightLayout.holeSize,
-                }}
-              />
-              <div
-                className="tutorial-pawn-spotlight-mask"
-                style={{
-                  left: 0,
-                  top: tutorialPawnSpotlightLayout.holeY + tutorialPawnSpotlightLayout.holeSize,
-                  width: "100%",
-                  height: Math.max(
-                    0,
-                    tutorialPawnSpotlightLayout.boardSize -
-                      (tutorialPawnSpotlightLayout.holeY + tutorialPawnSpotlightLayout.holeSize)
-                  ),
-                }}
-              />
-              <div
-                className="tutorial-pawn-spotlight-hole"
-                style={{
-                  left: tutorialPawnSpotlightLayout.holeX,
-                  top: tutorialPawnSpotlightLayout.holeY,
-                  width: tutorialPawnSpotlightLayout.holeSize,
-                  height: tutorialPawnSpotlightLayout.holeSize,
-                }}
-              />
-              <div
-                className="tutorial-pawn-spotlight-note"
-                style={{
-                  left: tutorialPawnSpotlightLayout.noteLeft,
-                  top: tutorialPawnSpotlightLayout.noteTop,
-                  width: tutorialPawnSpotlightLayout.noteWidth,
-                }}
+              <svg
+                className="tutorial-spotlight-svg"
+                viewBox={`0 0 ${tutorialSpotlightLayout.boardSize} ${tutorialSpotlightLayout.boardSize}`}
+                preserveAspectRatio="none"
               >
-                {activeGuidedMoveContext?.instructionPrefix}{" "}
-                <strong>{activeGuidedMoveContext?.san}</strong>.
-              </div>
+                <defs>
+                  <mask id={spotlightMaskId}>
+                    <rect
+                      x={0}
+                      y={0}
+                      width={tutorialSpotlightLayout.boardSize}
+                      height={tutorialSpotlightLayout.boardSize}
+                      fill="#fff"
+                    />
+                    {tutorialSpotlightLayout.holes.map((hole, index) => (
+                      <rect
+                        key={`spotlight-hole-${index}`}
+                        x={hole.x}
+                        y={hole.y}
+                        width={hole.size}
+                        height={hole.size}
+                        rx={Math.max(6, Math.min(12, hole.size * 0.14))}
+                        fill="#000"
+                      />
+                    ))}
+                  </mask>
+                </defs>
+                <rect
+                  className="tutorial-pawn-spotlight-mask"
+                  x={0}
+                  y={0}
+                  width={tutorialSpotlightLayout.boardSize}
+                  height={tutorialSpotlightLayout.boardSize}
+                  mask={`url(#${spotlightMaskId})`}
+                />
+              </svg>
+              {activeSpotlightMoveContext && (
+                <div
+                  className="tutorial-pawn-spotlight-note"
+                  style={{
+                    left: tutorialSpotlightLayout.noteLeft,
+                    top: tutorialSpotlightLayout.noteTop,
+                    width: tutorialSpotlightLayout.noteWidth,
+                  }}
+                >
+                  {activeSpotlightMoveContext.instructionPrefix}{" "}
+                  <strong>{activeSpotlightMoveContext.san}</strong>.
+                </div>
+              )}
             </div>
           )}
           {showTutorialLineAdvancePrompt && (
@@ -535,10 +781,22 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               </button>
             </div>
           )}
+          {isBranchPopupVisible && (
+            <div className="tutorial-practice-popup-layer">
+              <div className="tutorial-practice-popup-card">
+                <p className="tutorial-practice-popup-title">{branchPopupTitle}</p>
+                <p className="tutorial-practice-popup-body">{branchPopupMessage}</p>
+                <button type="button" className="tutorial-practice-popup-btn" onClick={dismissBranchPopup}>
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
           {isPracticePopupVisible && (
             <div className="tutorial-practice-popup-layer">
               <div className="tutorial-practice-popup-card">
-                <p className="tutorial-practice-popup-text">Now practice the rest from the pgn uploaded!</p>
+                <p className="tutorial-practice-popup-title">Practice checkpoint</p>
+                <p className="tutorial-practice-popup-body">Now practice the rest from the pgn uploaded!</p>
                 <button type="button" className="tutorial-practice-popup-btn" onClick={dismissPracticePopup}>
                   Continue
                 </button>
