@@ -23,12 +23,5 @@
 - Whether to implement game progress destructively: no
   - I think implementing a clickable interface like Chess.com would be way simpler if I didn't distinguish between previously played moves and current ones. Saving progress should still be pretty straight forward — it's just a question of whether to delete lastBranchingNode from its parent, or to add it to a set to make sure not to visit it again.
 
-# Things I've done since last meeting
-- migrated backend to ts
-  - rethought types in front and backend
-- remade backend with nodes
-- took game settings out into their own hooks
-- intelligent preview feaure
-
 # Questions:
 marked // Question: 
