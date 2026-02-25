@@ -82,6 +82,41 @@ function useAuth() {
     }
   };
 
+  const loginWithGoogle = async (idToken: string) => {
+    try {
+      if (!idToken) {
+        throw new Error("Google ID token is required!");
+      }
+
+      const response = await fetch(`${API_URL}/sign-in-google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `API request failed! with status: ${response.status}`
+        );
+      }
+
+      const { user, token } = await response.json();
+      localStorage.setItem("token", token);
+      setUser(user);
+      setIsAuthenticated(true);
+      return { success: true };
+    } catch (error) {
+      logger.error("[Google Login] Login error:", error);
+      const errorMessage =
+        (error as Error).message ?? "Please try again later!";
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  };
+
   const logout = async () => {
     try {
       logger.debug("[Logout] Attempting to logout");
@@ -136,7 +171,7 @@ function useAuth() {
     }
   };
 
-  return { user, login, register, logout, validate };
+  return { user, login, loginWithGoogle, register, logout, validate };
 }
 
 export default useAuth;

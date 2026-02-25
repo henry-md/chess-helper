@@ -3,6 +3,7 @@ import { hash, verify } from "@node-rs/argon2";
 import { Router, Request, Response, RequestHandler } from "express";
 import { generateToken, verifyToken } from "../utils/jwt";
 import logger from "../utils/logger";
+import { randomUUID } from "crypto";
 
 const router = Router();
 
@@ -16,11 +17,65 @@ interface SignUpBody {
   password: string;
 }
 
+interface GoogleSignInBody {
+  idToken: string;
+}
+
+type GoogleTokenInfo = {
+  aud: string;
+  sub: string;
+  email: string;
+  email_verified: string | boolean;
+  name?: string;
+  given_name?: string;
+};
+
 const hashOptions = {
   memoryCost: 19456,
   timeCost: 2,
   outputLen: 32,
   parallelism: 1,
+};
+
+const buildUsernameFromGoogle = (tokenInfo: GoogleTokenInfo): string => {
+  const raw =
+    tokenInfo.given_name ||
+    tokenInfo.name ||
+    tokenInfo.email?.split("@")[0] ||
+    "player";
+  const normalized = raw.replace(/[^a-zA-Z0-9_-]/g, "").trim();
+  return normalized.slice(0, 24) || "player";
+};
+
+const verifyGoogleIdToken = async (
+  idToken: string
+): Promise<GoogleTokenInfo | null> => {
+  try {
+    const response = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(
+        idToken
+      )}`
+    );
+    if (!response.ok) {
+      return null;
+    }
+
+    const tokenInfo = (await response.json()) as GoogleTokenInfo;
+    const expectedAudience = process.env.GOOGLE_CLIENT_ID;
+    if (expectedAudience && tokenInfo.aud !== expectedAudience) {
+      return null;
+    }
+
+    const emailVerified =
+      tokenInfo.email_verified === true || tokenInfo.email_verified === "true";
+    if (!emailVerified || !tokenInfo.email) {
+      return null;
+    }
+    return tokenInfo;
+  } catch (error) {
+    logger.error("[Google Sign In] Token validation failed:", error);
+    return null;
+  }
 };
 
 router.post("/sign-up", (async (req: Request<{}, {}, SignUpBody>, res: Response) => {
@@ -63,6 +118,57 @@ router.post("/sign-up", (async (req: Request<{}, {}, SignUpBody>, res: Response)
     });
   }
 }) as RequestHandler);
+
+router.post(
+  "/sign-in-google",
+  (async (req: Request<{}, {}, GoogleSignInBody>, res: Response) => {
+    try {
+      const { idToken } = req.body;
+      if (!idToken) {
+        res.status(400).json({
+          success: false,
+          message: "Google ID token is required",
+        });
+        return;
+      }
+
+      const tokenInfo = await verifyGoogleIdToken(idToken);
+      if (!tokenInfo) {
+        res.status(401).json({
+          success: false,
+          message: "Google authentication failed",
+        });
+        return;
+      }
+
+      let user = await User.findOne({ email: tokenInfo.email });
+      if (!user) {
+        const passwordHash = await hash(`oauth-${randomUUID()}`, hashOptions);
+        user = await User.create({
+          email: tokenInfo.email,
+          username: buildUsernameFromGoogle(tokenInfo),
+          passwordHash,
+        });
+      }
+
+      const token = generateToken(user._id.toString());
+      res.json({
+        success: true,
+        message: "User signed in with Google successfully",
+        user,
+        token,
+      });
+      return;
+    } catch (error) {
+      logger.error("[Google Sign In] Error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+      return;
+    }
+  }) as RequestHandler
+);
 
 router.post("/sign-in", (async (req: Request, res: Response) => {
   try {

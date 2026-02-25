@@ -4,10 +4,17 @@ import useAuth from "../hooks/use-auth.js";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useEffect, useRef } from "react";
+import { GOOGLE_CLIENT_ID } from "@/env";
+
+type GoogleCredentialResponse = {
+  credential?: string;
+};
 
 const Login = () => {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
   // handle form submission
   const handleSubmit = async (e: any) => {
@@ -26,6 +33,71 @@ const Login = () => {
       navigate("/dashboard");
     }
   };
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !googleButtonRef.current) {
+      return;
+    }
+
+    const initializeGoogleButton = () => {
+      const google = (window as any).google;
+      if (!google?.accounts?.id || !googleButtonRef.current) {
+        return;
+      }
+
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (response: GoogleCredentialResponse) => {
+          if (!response.credential) {
+            toast.error("Google sign-in failed", { position: "bottom-left" });
+            return;
+          }
+
+          const result = await loginWithGoogle(response.credential);
+          if (!result.success) {
+            toast.error(result.error || "Google sign-in failed", {
+              position: "bottom-left",
+            });
+            return;
+          }
+
+          navigate("/dashboard");
+        },
+      });
+
+      googleButtonRef.current.innerHTML = "";
+      google.accounts.id.renderButton(googleButtonRef.current, {
+        type: "standard",
+        size: "large",
+        text: "signin_with",
+        shape: "rectangular",
+        theme: "outline",
+        width: 320,
+      });
+    };
+
+    if ((window as any).google?.accounts?.id) {
+      initializeGoogleButton();
+      return;
+    }
+
+    const existingScript = document.getElementById("google-gsi-script");
+    if (existingScript) {
+      existingScript.addEventListener("load", initializeGoogleButton, {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "google-gsi-script";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeGoogleButton;
+    document.head.appendChild(script);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex items-center justify-center h-[100vh]">
@@ -77,6 +149,21 @@ const Login = () => {
             </Button>
           </div>
         </form>
+        {GOOGLE_CLIENT_ID && (
+          <div className="pt-2">
+            <div className="relative my-3">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="px-2 bg-white text-muted-foreground">Or</span>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <div ref={googleButtonRef} />
+            </div>
+          </div>
+        )}
       </div>
       <ToastContainer />
     </div>
