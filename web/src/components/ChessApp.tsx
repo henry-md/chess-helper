@@ -15,7 +15,10 @@ import LessonCompleteCelebration from "@/components/LessonCompleteCelebration";
 import LineTransitionCelebration from "@/components/LineTransitionCelebration";
 import TutorialCoachmarks from "@/components/TutorialCoachmarks";
 import { moveTextToMainlines } from "@/utils/chess/pgn-parser";
-import { MOVES_HIGHLIGHTED_IN_TUTORIAL } from "@/constants";
+import {
+  HIGHLIGHT_DESTINATION_SQUARE_IN_TUTORIAL_IN_NON_BRANCHING_POSITIONS,
+  MOVES_HIGHLIGHTED_IN_TUTORIAL,
+} from "@/constants";
 
 // Custom hooks for game state
 import useSkipping from '@/hooks/game/useSkipping';
@@ -295,13 +298,20 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     firstUnguidedUserMoveIndex !== null &&
     nextMoveIndex === firstUnguidedUserMoveIndex;
   const currentBranchPositionKey = `${nextMoveIndex}|${normalizeFen(currFen)}`;
+  const hasBranchOptionsAtCurrentPosition = branchPositionKeys.has(currentBranchPositionKey);
   const currentBranchOccurrenceKey =
     isTutorialBranchGuideActive &&
     !isAwaitingLineAdvance &&
     !isPracticePopupVisible &&
-    branchPositionKeys.has(currentBranchPositionKey)
+    hasBranchOptionsAtCurrentPosition
       ? currentBranchPositionKey
       : null;
+  const shouldHighlightDestinationSquareInTutorial =
+    HIGHLIGHT_DESTINATION_SQUARE_IN_TUTORIAL_IN_NON_BRANCHING_POSITIONS &&
+    !isBranchPopupVisible &&
+    isTutorialMoveGuideActive &&
+    isUsersTurnByIndex &&
+    !hasBranchOptionsAtCurrentPosition;
 
   const activeGuidedMove = useMemo<GuidedMove | null>(() => {
     if (!isTutorialMoveGuideActive || !isUsersTurnByIndex || isAwaitingLineAdvance) {
@@ -443,9 +453,9 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     }
 
     if (branchPopupOptionCount > 2) {
-      return `You are seeing this branch again. Your opponent may randomly choose from ${remainingOptionsLabel}.`;
+      return `You are seeing this branch again. Your opponent will now play one of the other ${remainingOptionsLabel} so that we can explore all the lines.`;
     }
-    return "You are seeing this branch again. Your opponent may randomly choose the other highlighted move.";
+    return "You are seeing this branch again. Your opponent will now play the other move so that we can explore all the lines.";
   }, [branchHighlightsDismissedCount, branchPopupIsUsersTurn, branchPopupOptionCount]);
 
   const highlightedBranchSans = useMemo<Set<string> | null>(() => {
@@ -632,7 +642,15 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     }
 
     const squareSize = boardSize / 8;
-    const sourceSquares = Array.from(new Set(activeSpotlightMoveContexts.map((context) => context.sourceSquare)));
+    const spotlightSquares = new Set<string>();
+    for (const moveContext of activeSpotlightMoveContexts) {
+      spotlightSquares.add(moveContext.sourceSquare);
+      if (shouldHighlightDestinationSquareInTutorial) {
+        spotlightSquares.add(moveContext.targetSquare);
+      }
+    }
+
+    const sourceSquares = Array.from(spotlightSquares);
     const holeSize = squareSize;
     const holes = sourceSquares.flatMap((sourceSquare) => {
       const squareTopLeft = getSquareTopLeft(sourceSquare, isPlayingWhite, squareSize);
@@ -668,7 +686,13 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
       noteTop,
       noteWidth,
     };
-  }, [activeSpotlightMoveContexts, boardFrame.height, boardFrame.width, isPlayingWhite]);
+  }, [
+    activeSpotlightMoveContexts,
+    boardFrame.height,
+    boardFrame.width,
+    isPlayingWhite,
+    shouldHighlightDestinationSquareInTutorial,
+  ]);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
