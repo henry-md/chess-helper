@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
+import { BUFFER_TIME_BEFORE_NEXT_LINE } from "@/constants";
 import { findNumMovesToFirstBranch, moveTextToMainlines } from "@/utils/chess/pgn-parser";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -19,6 +20,7 @@ type UseLineQuizSessionResult = {
   currFen: string;
   isAutoPlaying: boolean;
   isCompleted: boolean;
+  isTransitioningBetweenLines: boolean;
   moveRejectionMessage: string | null;
   onPieceDrop: (sourceSquare: string, targetSquare: string) => boolean;
   stepForward: () => void;
@@ -81,6 +83,7 @@ const useLineQuizSession = ({
   const [currFen, setCurrFen] = useState(START_FEN);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isTransitioningBetweenLines, setIsTransitioningBetweenLines] = useState(false);
   const [moveRejectionMessage, setMoveRejectionMessage] = useState<string | null>(null);
   const isAutoPlayingRef = useRef(false);
   const isCompletedRef = useRef(false);
@@ -138,6 +141,7 @@ const useLineQuizSession = ({
       window.clearTimeout(timeoutId);
     }
     scheduledTimeoutIdsRef.current = [];
+    setIsTransitioningBetweenLines(false);
     setIsAutoPlaying(false);
   }, []);
 
@@ -199,14 +203,19 @@ const useLineQuizSession = ({
 
     const nextLineIdx = getNextIncompleteLineIndex();
     if (nextLineIdx !== null) {
-      startLineRef.current(nextLineIdx);
+      setIsTransitioningBetweenLines(true);
+      setIsAutoPlaying(true);
+      scheduleAction(() => {
+        startLineRef.current(nextLineIdx);
+      }, BUFFER_TIME_BEFORE_NEXT_LINE);
       return;
     }
 
+    setIsTransitioningBetweenLines(false);
     setIsAutoPlaying(false);
     setIsCompleted(true);
     onSessionCompleteRef.current?.();
-  }, [getNextIncompleteLineIndex]);
+  }, [getNextIncompleteLineIndex, scheduleAction]);
 
   const runAutoMoves = useCallback(
     (pliesRemaining: number, delayMs: number = AUTO_MOVE_DELAY_MS): void => {
@@ -245,6 +254,7 @@ const useLineQuizSession = ({
       currentMoveIdxRef.current = -1;
       furthestMoveIdxRef.current = -1;
       setIsCompleted(false);
+      setIsTransitioningBetweenLines(false);
       setMoveRejectionMessage(null);
 
       chessRef.current.reset();
@@ -465,6 +475,7 @@ const useLineQuizSession = ({
       currentMoveIdxRef.current = -1;
       furthestMoveIdxRef.current = -1;
       setIsCompleted(false);
+      setIsTransitioningBetweenLines(false);
       setMoveRejectionMessage(null);
       setCurrFen(chessRef.current.fen());
       return undefined;
@@ -476,6 +487,7 @@ const useLineQuizSession = ({
     const firstLineIdx = getNextIncompleteLineIndex();
     if (firstLineIdx === null) {
       setIsCompleted(true);
+      setIsTransitioningBetweenLines(false);
       return clearScheduledActions;
     }
 
@@ -494,6 +506,7 @@ const useLineQuizSession = ({
     currFen,
     isAutoPlaying,
     isCompleted,
+    isTransitioningBetweenLines,
     moveRejectionMessage,
     onPieceDrop,
     stepForward,

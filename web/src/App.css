@@ -88,6 +88,25 @@ button.w-full {
   color: #92400e;
 }
 
+.line-transition-layer {
+  z-index: 22;
+}
+
+.line-transition-burst {
+  overflow: hidden;
+}
+
+.line-transition-confetti {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 2px;
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(0deg) scale(0.2);
+  animation: line-confetti-burst 520ms ease-out forwards;
+  will-change: transform, opacity;
+}
+
 @keyframes lesson-complete-pop {
   0% {
     opacity: 0;
@@ -96,6 +115,20 @@ button.w-full {
   100% {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes line-confetti-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(0.2);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(var(--tx, 0px), var(--ty, 0px)) rotate(var(--rot, 320deg)) scale(1);
   }
 }
 

@@ -11,6 +11,7 @@ import { $pgn } from '@/store/pgn';
 import { toast } from 'react-toastify';
 import useLineQuizSession from "@/hooks/game/useLineQuizSession";
 import LessonCompleteCelebration from "@/components/LessonCompleteCelebration";
+import LineTransitionCelebration from "@/components/LineTransitionCelebration";
 
 // Custom hooks for game state
 import useSkipping from '@/hooks/game/useSkipping';
@@ -39,6 +40,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     currFen,
     isAutoPlaying,
     isCompleted,
+    isTransitioningBetweenLines,
     moveRejectionMessage,
     onPieceDrop,
     showHint,
@@ -104,6 +106,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
             isCompleted={isCompleted}
             showAnimation={showCelebrationAnimation}
           />
+          <LineTransitionCelebration isVisible={isTransitioningBetweenLines && !isCompleted} />
         </div>
 
         {/* Aside */}
