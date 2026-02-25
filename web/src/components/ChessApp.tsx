@@ -16,6 +16,7 @@ import LineTransitionCelebration from "@/components/LineTransitionCelebration";
 import TutorialCoachmarks from "@/components/TutorialCoachmarks";
 import { moveTextToMainlines } from "@/utils/chess/pgn-parser";
 import {
+  CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL,
   HIGHLIGHT_DESTINATION_SQUARE_IN_TUTORIAL_IN_NON_BRANCHING_POSITIONS,
   MOVES_HIGHLIGHTED_IN_TUTORIAL,
 } from "@/constants";
@@ -145,6 +146,8 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     isAwaitingLineAdvance,
     remainingLineCount,
     currentMoveIndex,
+    nextExpectedMoveSan,
+    recentAutoMoveSan,
     moveRejectionMessage,
     onPieceDrop,
     continueToNextLine,
@@ -458,14 +461,56 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     return "You are seeing this branch again. Your opponent will now play the other move so that we can explore all the lines.";
   }, [branchHighlightsDismissedCount, branchPopupIsUsersTurn, branchPopupOptionCount]);
 
-  const highlightedBranchSans = useMemo<Set<string> | null>(() => {
-    if (!isBranchPopupVisible || branchPopupMoveContexts.length === 0) {
+  const persistedBranchHighlightSans = useMemo<Set<string> | null>(() => {
+    if (
+      !isTutorial ||
+      !CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL ||
+      !isUsersTurnByIndex ||
+      !hasBranchOptionsAtCurrentPosition
+    ) {
       return null;
     }
 
-    return new Set(branchPopupMoveContexts.map((context) => context.san));
-  }, [branchPopupMoveContexts, isBranchPopupVisible]);
-  const highlightedPgnMoveSan = activeSpotlightMoveContext?.san ?? null;
+    const branchMoveSans = branchMoveOptionsByPosition.get(currentBranchPositionKey) ?? [];
+    if (branchMoveSans.length <= 1) {
+      return null;
+    }
+
+    return new Set(branchMoveSans);
+  }, [
+    branchMoveOptionsByPosition,
+    currentBranchPositionKey,
+    hasBranchOptionsAtCurrentPosition,
+    isTutorial,
+    isUsersTurnByIndex,
+  ]);
+
+  const highlightedBranchSans = useMemo<Set<string> | null>(() => {
+    if (isBranchPopupVisible && branchPopupMoveContexts.length > 0) {
+      return new Set(branchPopupMoveContexts.map((context) => context.san));
+    }
+
+    return persistedBranchHighlightSans;
+  }, [branchPopupMoveContexts, isBranchPopupVisible, persistedBranchHighlightSans]);
+  const shouldContinuePgnMoveHighlighting =
+    isTutorial &&
+    CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL &&
+    !isAwaitingLineAdvance;
+  const pendingOpponentMoveSan =
+    shouldContinuePgnMoveHighlighting &&
+    !isUsersTurnByIndex &&
+    isAutoPlaying &&
+    !hasBranchOptionsAtCurrentPosition
+      ? nextExpectedMoveSan
+      : null;
+  const highlightedOpponentMoveSan =
+    shouldContinuePgnMoveHighlighting && recentAutoMoveSan ? recentAutoMoveSan : null;
+  const highlightedPgnMoveSan =
+    activeSpotlightMoveContext?.san ??
+    highlightedOpponentMoveSan ??
+    (shouldContinuePgnMoveHighlighting && isUsersTurnByIndex
+      ? nextExpectedMoveSan
+      : pendingOpponentMoveSan);
 
   const tutorialPgnSegments = useMemo<HighlightedTextSegment[]>(() => {
     const moveText = pgn?.moveText || "";

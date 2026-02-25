@@ -5,6 +5,7 @@ export const BUFFER_TIME_BEFORE_NEXT_LINE = 1500;
 export const OFFSET_OF_CELEBRATION_BETWEEN_LINES = 300;
 export const MOVES_HIGHLIGHTED_IN_TUTORIAL = 3;
 export const HIGHLIGHT_DESTINATION_SQUARE_IN_TUTORIAL_IN_NON_BRANCHING_POSITIONS = true;
+export const CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL = true;
 
 export const TUTORIAL_NOTES =
   "PGN quick primer: move numbers group White+Black moves (1. e4 e5). Piece letters: N=knight, B=bishop, R=rook, Q=queen, K=king. O-O means king-side castle. Parentheses mark alternative branches to train.";
