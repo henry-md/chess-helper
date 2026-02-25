@@ -18,7 +18,11 @@ import usePlayingColor from '@/hooks/game/use-playing-color';
 
 const debug = NODE_ENV === "development";
 
-function ChessApp() {
+type ChessAppProps = {
+  isTutorial?: boolean;
+};
+
+function ChessApp({ isTutorial = false }: ChessAppProps) {
   const pgn: StoredPgn | null = useStore($pgn);
   
   if (!pgn) return <div>Loading...</div>;
@@ -222,9 +226,11 @@ function ChessApp() {
           )}>
             <div className="flex flex-row items-center w-full gap-4 justify-left">
               <h3 className="text-2xl">{pgn?.title}</h3>
-              <button onClick={() => setEditDialogOpen(true)}>
-                <i className="fa-regular fa-pen-to-square"></i>
-              </button>
+              {!isTutorial && (
+                <button onClick={() => setEditDialogOpen(true)}>
+                  <i className="fa-regular fa-pen-to-square"></i>
+                </button>
+              )}
             </div>
             <textarea
               value={pgn?.notes || ''}
@@ -233,7 +239,12 @@ function ChessApp() {
             />
             <textarea 
               value={pgn?.moveText || ''}
-              className="flex-grow w-full h-full p-2 border border-gray-300 rounded"
+              readOnly={isTutorial}
+              onFocus={isTutorial ? (event) => event.currentTarget.blur() : undefined}
+              className={cn(
+                "flex-grow w-full h-full p-2 border border-gray-300 rounded",
+                isTutorial && "cursor-default"
+              )}
               placeholder="Type here..."
             />
           </div>
