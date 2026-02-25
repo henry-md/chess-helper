@@ -1,4 +1,4 @@
-import { NODE_ENV } from "@/env.ts";
+import { NODE_ENV } from "@/env";
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 

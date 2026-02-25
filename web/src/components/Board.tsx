@@ -1,5 +1,4 @@
 import { Chessboard } from "react-chessboard";
-import PropTypes from 'prop-types';
 
 interface BoardProps {
   currFen: string;
@@ -23,12 +22,6 @@ const Board = ({ currFen, onPieceDrop, isWhite }: BoardProps) => {
       }}
     />
   );
-};
-
-Board.propTypes = {
-  currFen: PropTypes.string.isRequired,
-  onPieceDrop: PropTypes.func.isRequired,
-  isWhite: PropTypes.bool.isRequired,
 };
 
 export default Board;

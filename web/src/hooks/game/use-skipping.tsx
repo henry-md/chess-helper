@@ -5,34 +5,50 @@ import { getAuthHeader } from "@/utils/auth";
 import { useStore } from "@nanostores/react";
 import { toast } from "react-toastify";
 
-const useSkipping = (pgn: StoredPgn) => {
-  const isSkipping = useStore($isSkipping)
+type UseSkippingOptions = {
+  persistRemotely?: boolean;
+};
+
+const useSkipping = (pgn: StoredPgn, options: UseSkippingOptions = {}) => {
+  const isSkipping = useStore($isSkipping);
+  const persistRemotely = options.persistRemotely ?? true;
+
+  const shouldSkipRemoteUpdate =
+    !persistRemotely || pgn._id === "tutorial" || pgn.userId === "tutorial";
 
   const setIsSkipping = async (value: boolean) => {
-    // Call API
-    const body = {
-      gameSettings: {
-        isSkipping: value
-      }
-    };
-    const response = await fetch(`${API_URL}/pgn/${pgn._id}`, {
-      method: 'PATCH',
-      headers: {
-        ...getAuthHeader(),
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-    if (!response.ok) {
-      toast.error("Error updating PGN");
+    const previousValue = isSkipping;
+    setIsSkippingStore(value);
+
+    if (shouldSkipRemoteUpdate) {
       return;
     }
 
-    // Update store
-    setIsSkippingStore(value)
-  }
+    try {
+      const body = {
+        gameSettings: {
+          isSkipping: value,
+        },
+      };
+      const response = await fetch(`${API_URL}/pgn/${pgn._id}`, {
+        method: "PATCH",
+        headers: {
+          ...getAuthHeader(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        setIsSkippingStore(previousValue);
+        toast.error("Error updating PGN");
+      }
+    } catch {
+      setIsSkippingStore(previousValue);
+      toast.error("Error updating PGN");
+    }
+  };
 
-  return { isSkipping, setIsSkipping }
+  return { isSkipping, setIsSkipping };
 };
 
 export default useSkipping;

@@ -5,34 +5,50 @@ import { useStore } from "@nanostores/react";
 import { toast } from "react-toastify";
 import { API_URL } from "@/env";
 
-const usePlayingColor = (pgn: StoredPgn) => {
-  const isPlayingWhite = useStore($isPlayingWhite)
+type UsePlayingColorOptions = {
+  persistRemotely?: boolean;
+};
+
+const usePlayingColor = (pgn: StoredPgn, options: UsePlayingColorOptions = {}) => {
+  const isPlayingWhite = useStore($isPlayingWhite);
+  const persistRemotely = options.persistRemotely ?? true;
+
+  const shouldSkipRemoteUpdate =
+    !persistRemotely || pgn._id === "tutorial" || pgn.userId === "tutorial";
 
   const setIsPlayingWhite = async (value: boolean) => {
-    // Call API
-    const body = {
-      gameSettings: {
-        isPlayingWhite: value
-      }
-    };
-    const response = await fetch(`${API_URL}/pgn/${pgn._id}`, {
-      method: 'PATCH',
-      headers: {
-        ...getAuthHeader(),
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-    if (!response.ok) {
-      toast.error("Error updating PGN");
+    const previousValue = isPlayingWhite;
+    setIsPlayingWhiteStore(value);
+
+    if (shouldSkipRemoteUpdate) {
       return;
     }
 
-    // Update store
-    setIsPlayingWhiteStore(value)
-  }
+    try {
+      const body = {
+        gameSettings: {
+          isPlayingWhite: value,
+        },
+      };
+      const response = await fetch(`${API_URL}/pgn/${pgn._id}`, {
+        method: "PATCH",
+        headers: {
+          ...getAuthHeader(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        setIsPlayingWhiteStore(previousValue);
+        toast.error("Error updating PGN");
+      }
+    } catch {
+      setIsPlayingWhiteStore(previousValue);
+      toast.error("Error updating PGN");
+    }
+  };
 
-  return { isPlayingWhite, setIsPlayingWhite }
+  return { isPlayingWhite, setIsPlayingWhite };
 };
 
 export default usePlayingColor;

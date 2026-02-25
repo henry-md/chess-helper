@@ -4,16 +4,13 @@ import Navbar from "../components/Navbar";
 import ChessApp from "../components/chess-app";
 import { useStore } from "@nanostores/react";
 import { $pgnDict, setPgn } from "../store/pgn";
-import { setMainlines, setNumMovesToFirstBranch } from "../store/game-core";
 import { API_URL } from "@/env";
 import { getAuthHeader } from "@/utils/auth";
-import { findNumMovesToFirstBranch, moveTextToMainlines } from "@/utils/chess/pgn-parser";
 import { setCurrentPgnId } from "../store/game-core";
-import useSkipping from "@/hooks/game/use-skipping";
-import usePlayingColor from "@/hooks/game/use-playing-color";
 import { setCurrentLine, setCurrentLineIdx } from "../store/game-core";
 import { StoredPgn } from "@/lib/types";
 import { setGameOver } from "../store/game-core";
+import { setIsPlayingWhiteStore, setIsSkippingStore } from "@/store/chess-settings";
 
 const Game = () => {
   const { id } = useParams();
@@ -22,40 +19,45 @@ const Game = () => {
   
   // Update game state
   if (!currentPgnObject) return <div>Loading...</div>;
-  const { setIsSkipping } = useSkipping(currentPgnObject);
-  const { setIsPlayingWhite } = usePlayingColor(currentPgnObject);
 
   // Load game & game state from id
   useEffect(() => {
+    const abortController = new AbortController();
+
     const fetchPgn = async () => {
       if (!id) return;
       setCurrentPgnId(id);
 
-      const response = await fetch(`${API_URL}/pgn/${id}`, {
-        method: "GET",
-        headers: getAuthHeader(),
-      });
-      if (response.ok) {
+      try {
+        const response = await fetch(`${API_URL}/pgn/${id}`, {
+          method: "GET",
+          headers: getAuthHeader(),
+          signal: abortController.signal,
+        });
+        if (!response.ok) {
+          return;
+        }
+
         const data = await response.json();
         const pgn: StoredPgn = data.pgn;
-        console.log('pgn', pgn);
         setPgn(pgn);
-        setMainlines(moveTextToMainlines(pgn.moveText));
-        setNumMovesToFirstBranch(findNumMovesToFirstBranch(pgn.moveText));
-        setIsSkipping(currentPgnObject.gameSettings.isSkipping);
-        setIsPlayingWhite(currentPgnObject.gameSettings.isPlayingWhite);
+        setIsSkippingStore(pgn.gameSettings.isSkipping);
+        setIsPlayingWhiteStore(pgn.gameSettings.isPlayingWhite);
         setCurrentLine([]);
         setCurrentLineIdx(0);
         setGameOver(false);
+      } catch (error) {
+        if (abortController.signal.aborted) {
+          return;
+        }
+        console.error("Failed to load PGN", error);
       }
     };
 
     fetchPgn();
-    
-    // Cleanup when unmounting
+
     return () => {
-      setMainlines([]);
-      setNumMovesToFirstBranch(0);
+      abortController.abort();
     };
   }, [id]);
 

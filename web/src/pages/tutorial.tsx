@@ -1,7 +1,5 @@
 import { useEffect } from "react";
 import { TUTORIAL_PGN } from "@/constants";
-import { findNumMovesToFirstBranch, moveTextToMainlines } from "@/utils/chess/pgn-parser";
-import { setMainlines, setNumMovesToFirstBranch } from "@/store/game-core";
 import { $pgn, setPgn } from "@/store/pgn";
 import { StoredPgn } from "@/lib/types";
 import Navbar from "../components/Navbar";
@@ -29,8 +27,6 @@ const Tutorial = () => {
     };
 
     setPgn(tutorialPgn);
-    setMainlines(moveTextToMainlines(TUTORIAL_PGN));
-    setNumMovesToFirstBranch(findNumMovesToFirstBranch(TUTORIAL_PGN));
   }, []);
 
   return (
