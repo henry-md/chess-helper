@@ -39,6 +39,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     currFen,
     isAutoPlaying,
     isCompleted,
+    moveRejectionMessage,
     onPieceDrop,
     showHint,
     stepBackward,
@@ -186,6 +187,12 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           >
             {isCompleted ? "Lesson complete: all lines covered." : "Lesson in progress"}
           </div>
+
+          {moveRejectionMessage && (
+            <div className="w-full rounded border border-amber-500 bg-amber-100/80 px-3 py-2 text-center text-sm font-medium text-amber-900">
+              {moveRejectionMessage}
+            </div>
+          )}
         </div>
       </div>
       {pgn && !isTutorial && (

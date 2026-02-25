@@ -6,6 +6,8 @@ const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const AUTO_MOVE_DELAY_MS = 220;
 const HINT_DURATION_MS = 500;
 
+type PositionMoveLineIndex = Map<string, Map<string, number[]>>;
+
 type UseLineQuizSessionArgs = {
   moveText: string;
   isPlayingWhite: boolean;
@@ -17,6 +19,7 @@ type UseLineQuizSessionResult = {
   currFen: string;
   isAutoPlaying: boolean;
   isCompleted: boolean;
+  moveRejectionMessage: string | null;
   onPieceDrop: (sourceSquare: string, targetSquare: string) => boolean;
   stepForward: () => void;
   stepBackward: () => void;
@@ -27,6 +30,37 @@ const removeTimeoutId = (timeoutIds: number[], targetId: number): number[] => {
   return timeoutIds.filter((timeoutId) => timeoutId !== targetId);
 };
 
+const getPositionKey = (nextMoveIndex: number, playedMoves: string[]): string => {
+  return `${nextMoveIndex}|${playedMoves.join(" ")}`;
+};
+
+const buildPositionMoveLineIndex = (lineMovesByIndex: string[][]): PositionMoveLineIndex => {
+  const positionMoveLineIndex: PositionMoveLineIndex = new Map();
+
+  for (const [lineIdx, lineMoves] of lineMovesByIndex.entries()) {
+    for (let moveIdx = 0; moveIdx < lineMoves.length; moveIdx++) {
+      const positionKey = getPositionKey(moveIdx, lineMoves.slice(0, moveIdx));
+      const move = lineMoves[moveIdx];
+
+      if (!positionMoveLineIndex.has(positionKey)) {
+        positionMoveLineIndex.set(positionKey, new Map());
+      }
+
+      const moveToLineIndices = positionMoveLineIndex.get(positionKey)!;
+      if (!moveToLineIndices.has(move)) {
+        moveToLineIndices.set(move, []);
+      }
+
+      const lineIndices = moveToLineIndices.get(move)!;
+      if (!lineIndices.includes(lineIdx)) {
+        lineIndices.push(lineIdx);
+      }
+    }
+  }
+
+  return positionMoveLineIndex;
+};
+
 const useLineQuizSession = ({
   moveText,
   isPlayingWhite,
@@ -34,11 +68,20 @@ const useLineQuizSession = ({
   onSessionComplete,
 }: UseLineQuizSessionArgs): UseLineQuizSessionResult => {
   const mainlines = useMemo(() => moveTextToMainlines(moveText), [moveText]);
+  const lineMovesByIndex = useMemo(
+    () => mainlines.map((line) => line.split(/\s+/).filter(Boolean)),
+    [mainlines]
+  );
+  const positionMoveLineIndex = useMemo(
+    () => buildPositionMoveLineIndex(lineMovesByIndex),
+    [lineMovesByIndex]
+  );
   const skipPlies = useMemo(() => findNumMovesToFirstBranch(moveText), [moveText]);
 
   const [currFen, setCurrFen] = useState(START_FEN);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [moveRejectionMessage, setMoveRejectionMessage] = useState<string | null>(null);
   const isAutoPlayingRef = useRef(false);
   const isCompletedRef = useRef(false);
 
@@ -48,11 +91,14 @@ const useLineQuizSession = ({
   const currentMoveIdxRef = useRef(-1);
   const furthestMoveIdxRef = useRef(-1);
   const scheduledTimeoutIdsRef = useRef<number[]>([]);
+  const completedLineIndicesRef = useRef<Set<number>>(new Set());
+  const branchCycleChoicesRef = useRef<Map<string, Set<string>>>(new Map());
 
   const isPlayingWhiteRef = useRef(isPlayingWhite);
   const isSkippingRef = useRef(isSkipping);
   const skipPliesRef = useRef(skipPlies);
-  const mainlinesRef = useRef(mainlines);
+  const lineMovesByIndexRef = useRef(lineMovesByIndex);
+  const positionMoveLineIndexRef = useRef(positionMoveLineIndex);
   const onSessionCompleteRef = useRef(onSessionComplete);
 
   useEffect(() => {
@@ -68,8 +114,12 @@ const useLineQuizSession = ({
   }, [skipPlies]);
 
   useEffect(() => {
-    mainlinesRef.current = mainlines;
-  }, [mainlines]);
+    lineMovesByIndexRef.current = lineMovesByIndex;
+  }, [lineMovesByIndex]);
+
+  useEffect(() => {
+    positionMoveLineIndexRef.current = positionMoveLineIndex;
+  }, [positionMoveLineIndex]);
 
   useEffect(() => {
     onSessionCompleteRef.current = onSessionComplete;
@@ -133,16 +183,30 @@ const useLineQuizSession = ({
   const startLineRef = useRef<(lineIndex: number) => void>(() => {});
   const runAutoMovesRef = useRef<(pliesRemaining: number, delayMs: number) => void>(() => {});
 
+  const getNextIncompleteLineIndex = useCallback((): number | null => {
+    const completedLineIndices = completedLineIndicesRef.current;
+    const lines = lineMovesByIndexRef.current;
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+      if (!completedLineIndices.has(lineIdx)) {
+        return lineIdx;
+      }
+    }
+    return null;
+  }, []);
+
   const advanceToNextLineOrComplete = useCallback(() => {
-    if (currentLineIdxRef.current < mainlinesRef.current.length - 1) {
-      startLineRef.current(currentLineIdxRef.current + 1);
+    completedLineIndicesRef.current.add(currentLineIdxRef.current);
+
+    const nextLineIdx = getNextIncompleteLineIndex();
+    if (nextLineIdx !== null) {
+      startLineRef.current(nextLineIdx);
       return;
     }
 
     setIsAutoPlaying(false);
     setIsCompleted(true);
     onSessionCompleteRef.current?.();
-  }, []);
+  }, [getNextIncompleteLineIndex]);
 
   const runAutoMoves = useCallback(
     (pliesRemaining: number, delayMs: number = AUTO_MOVE_DELAY_MS): void => {
@@ -176,18 +240,15 @@ const useLineQuizSession = ({
     (lineIndex: number): void => {
       clearScheduledActions();
 
-      const line = mainlinesRef.current[lineIndex];
+      const lineMoves = lineMovesByIndexRef.current[lineIndex] ?? [];
       currentLineIdxRef.current = lineIndex;
       currentMoveIdxRef.current = -1;
       furthestMoveIdxRef.current = -1;
       setIsCompleted(false);
+      setMoveRejectionMessage(null);
 
       chessRef.current.reset();
-      if (line) {
-        chessRef.current.loadPgn(line);
-      }
-      movesRef.current = chessRef.current.history();
-      chessRef.current.reset();
+      movesRef.current = lineMoves;
       setCurrFen(chessRef.current.fen());
 
       if (movesRef.current.length === 0) {
@@ -237,6 +298,7 @@ const useLineQuizSession = ({
         return false;
       }
 
+      const playedMovesBefore = chessRef.current.history();
       const nextMoveIndex = currentMoveIdxRef.current + 1;
       const expectedMove = movesRef.current[nextMoveIndex];
       if (!expectedMove) {
@@ -253,15 +315,51 @@ const useLineQuizSession = ({
         return false;
       }
 
-      if (moveAttempt.san !== expectedMove) {
+      const positionKey = getPositionKey(nextMoveIndex, playedMovesBefore);
+      const moveToLineIndices = positionMoveLineIndexRef.current.get(positionKey);
+      const lineIndicesForMove = moveToLineIndices?.get(moveAttempt.san) ?? [];
+
+      const isKnownPgnMoveAtPosition = lineIndicesForMove.length > 0;
+      if (!isKnownPgnMoveAtPosition && moveAttempt.san !== expectedMove) {
         chessRef.current.undo();
         setCurrFen(chessRef.current.fen());
         return false;
       }
 
+      if (moveToLineIndices && moveToLineIndices.size > 1) {
+        const branchCycleChoices = branchCycleChoicesRef.current;
+        const alreadyChosenAtPosition = branchCycleChoices.get(positionKey) ?? new Set<string>();
+
+        if (alreadyChosenAtPosition.has(moveAttempt.san)) {
+          chessRef.current.undo();
+          setCurrFen(chessRef.current.fen());
+          setMoveRejectionMessage("That move was already chosen at this branch. Pick a different PGN move.");
+          return false;
+        }
+
+        alreadyChosenAtPosition.add(moveAttempt.san);
+
+        // Reset the cycle after all branch moves at this position have been chosen once.
+        if (alreadyChosenAtPosition.size >= moveToLineIndices.size) {
+          branchCycleChoices.delete(positionKey);
+        } else {
+          branchCycleChoices.set(positionKey, alreadyChosenAtPosition);
+        }
+      }
+
+      if (lineIndicesForMove.length > 0) {
+        const incompleteLineIndices = lineIndicesForMove.filter(
+          (lineIdx) => !completedLineIndicesRef.current.has(lineIdx)
+        );
+        const nextLineIdx = incompleteLineIndices[0] ?? lineIndicesForMove[0];
+        currentLineIdxRef.current = nextLineIdx;
+        movesRef.current = lineMovesByIndexRef.current[nextLineIdx] ?? [];
+      }
+
       currentMoveIdxRef.current = nextMoveIndex;
       furthestMoveIdxRef.current = Math.max(furthestMoveIdxRef.current, nextMoveIndex);
       setCurrFen(chessRef.current.fen());
+      setMoveRejectionMessage(null);
 
       if (isCurrentLineComplete()) {
         advanceToNextLineOrComplete();
@@ -361,22 +459,42 @@ const useLineQuizSession = ({
       clearScheduledActions();
       chessRef.current.reset();
       movesRef.current = [];
+      completedLineIndicesRef.current = new Set();
+      branchCycleChoicesRef.current = new Map();
       currentLineIdxRef.current = 0;
       currentMoveIdxRef.current = -1;
       furthestMoveIdxRef.current = -1;
       setIsCompleted(false);
+      setMoveRejectionMessage(null);
       setCurrFen(chessRef.current.fen());
       return undefined;
     }
 
-    startLineRef.current(0);
+    completedLineIndicesRef.current = new Set();
+    branchCycleChoicesRef.current = new Map();
+
+    const firstLineIdx = getNextIncompleteLineIndex();
+    if (firstLineIdx === null) {
+      setIsCompleted(true);
+      return clearScheduledActions;
+    }
+
+    startLineRef.current(firstLineIdx);
     return clearScheduledActions;
-  }, [clearScheduledActions, isPlayingWhite, isSkipping, mainlines, skipPlies]);
+  }, [
+    clearScheduledActions,
+    getNextIncompleteLineIndex,
+    isPlayingWhite,
+    isSkipping,
+    mainlines,
+    skipPlies,
+  ]);
 
   return {
     currFen,
     isAutoPlaying,
     isCompleted,
+    moveRejectionMessage,
     onPieceDrop,
     stepForward,
     stepBackward,
