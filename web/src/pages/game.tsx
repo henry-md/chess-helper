@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Navbar from "../components/navbar";
-import ChessApp from "../utils/old/old-chess-app";
+import ChessApp from "../components/chess-app";
 import { useStore } from "@nanostores/react";
 import { $pgnDict, setPgn } from "../store/pgn";
 import { setMainlines, setNumMovesToFirstBranch } from "../store/game-core";
