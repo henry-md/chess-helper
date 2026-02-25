@@ -139,6 +139,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   const [branchHighlightsDismissedCount, setBranchHighlightsDismissedCount] = useState(0);
   const [branchPopupPositionKey, setBranchPopupPositionKey] = useState<string | null>(null);
   const [branchPopupIsUsersTurn, setBranchPopupIsUsersTurn] = useState(false);
+  const [isMoveHighlightingEnabled, setIsMoveHighlightingEnabled] = useState(true);
   const latestBranchOccurrenceKeyRef = useRef<string | null>(null);
   const {
     currFen,
@@ -270,6 +271,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     if (!isTutorial) {
       return;
     }
+    setIsMoveHighlightingEnabled(true);
     setHasCompletedGuidedFirstLine(false);
     setHasDismissedPracticePopup(false);
     setIsPracticePopupVisible(false);
@@ -494,9 +496,10 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
 
     return persistedBranchHighlightSans;
   }, [branchPopupMoveContexts, isBranchPopupVisible, persistedBranchHighlightSans]);
+  const isPgnMoveHighlightingEnabled = isTutorial || isMoveHighlightingEnabled;
   const shouldContinuePgnMoveHighlighting =
-    isTutorial &&
-    CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL &&
+    isPgnMoveHighlightingEnabled &&
+    (!isTutorial || CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL) &&
     !isAwaitingLineAdvance;
   const totalOpponentMoveHoverDurationMs =
     BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE + LENGTH_OF_OPPONENT_MOVE;
@@ -518,9 +521,9 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
       ? nextExpectedMoveSan
       : pendingOpponentMoveSan);
 
-  const tutorialPgnSegments = useMemo<HighlightedTextSegment[]>(() => {
+  const pgnTextSegments = useMemo<HighlightedTextSegment[]>(() => {
     const moveText = pgn?.moveText || "";
-    if (!isTutorial || moveText.length === 0) {
+    if (!isPgnMoveHighlightingEnabled || moveText.length === 0) {
       return [{ key: "raw", text: moveText, isHighlighted: false }];
     }
 
@@ -556,7 +559,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
         isHighlighted: isHighlightMatch,
       };
     });
-  }, [highlightedBranchSans, highlightedPgnMoveSan, isTutorial, pgn?.moveText]);
+  }, [highlightedBranchSans, highlightedPgnMoveSan, isPgnMoveHighlightingEnabled, pgn?.moveText]);
 
   const isTutorialInteractionLocked =
     isTutorialMoveGuideActive ||
@@ -906,7 +909,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               className="p-2 w-full rounded border border-gray-300 h-fit"
               placeholder="Notes"
             />
-            {isTutorial ? (
+            {isPgnMoveHighlightingEnabled ? (
               <div
                 ref={tutorialPgnRef}
                 className="flex-grow p-2 w-full h-full rounded border border-gray-300 tutorial-pgn-display"
@@ -914,7 +917,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
                 aria-readonly="true"
                 aria-label="PGN"
               >
-                {tutorialPgnSegments.map((segment) => (
+                {pgnTextSegments.map((segment) => (
                   <span
                     key={segment.key}
                     className={segment.isHighlighted ? "tutorial-pgn-token-highlight" : undefined}
@@ -961,6 +964,18 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               />
             </button>
           </div>
+          {!isTutorial && (
+            <div className="flex flex-row gap-2 justify-center items-center">
+              Highlight moves:
+              <button onClick={() => setIsMoveHighlightingEnabled((enabled) => !enabled)}>
+                <FontAwesomeIcon
+                  className="text-[#411A06]"
+                  icon={isMoveHighlightingEnabled ? faToggleOn : faToggleOff}
+                  size="lg"
+                />
+              </button>
+            </div>
+          )}
 
           {/* Hint Button */}
           <button 
