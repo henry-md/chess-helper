@@ -1,5 +1,51 @@
-After cloning, change .env file:
-MONGO_URL=mongodb+srv://henry:cCnY0BtVwICpMDxH@cluster0.qruvcuc.mongodb.net/<YOUR APP NAME HERE>?retryWrites=true&w=majority&appName=Cluster0
+## Railway Deployment (Monorepo: `api` + `web`)
 
-Based on the following tutorial:
-https://www.freecodecamp.org/news/how-to-secure-your-mern-stack-application/#heading-how-to-set-up-mongodb
+This repo is configured so frontend and backend can be deployed as two Railway services from one GitHub repo.
+
+### 1) Create API service
+
+- In Railway, create a new service from this repo.
+- Set `Root Directory` to `api`.
+- Railway will use `api/railway.toml`.
+
+Required environment variables:
+
+- `MONGO_URL`
+- `JWT_SECRET`
+
+Optional environment variables:
+
+- `GOOGLE_CLIENT_ID` (required only for Google sign-in audience checks)
+- `NODE_ENV=production`
+
+Health check endpoint:
+
+- `GET /hello`
+
+### 2) Create Web service
+
+- Create a second Railway service from the same repo.
+- Set `Root Directory` to `web`.
+- Railway will use `web/railway.toml`.
+
+Required environment variables:
+
+- `VITE_API_URL=https://<your-api-service-domain>`
+- `VITE_NODE_ENV=production`
+
+Optional environment variables:
+
+- `VITE_GOOGLE_CLIENT_ID` (if Google sign-in UI is enabled)
+- `VITE_BASE_URL=https://<your-web-service-domain>`
+
+### 3) Domain wiring
+
+- Deploy API first and copy its public domain.
+- Set web `VITE_API_URL` to that API domain.
+- Redeploy web.
+
+### 4) Notes
+
+- API now has a production `start` script and defaults `PORT` to `8080` if Railway `PORT` is absent.
+- API no longer imports frontend source files at runtime (prevents backend deploy failures due frontend alias resolution).
+- If any previous MongoDB credential was exposed in git history, rotate it.

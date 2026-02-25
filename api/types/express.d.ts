@@ -1,4 +1,4 @@
-import { StoredUser } from '@/types/chess';
+import { StoredUser } from './auth';
 
 declare global {
   namespace Express {

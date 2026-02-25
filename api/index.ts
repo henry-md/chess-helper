@@ -9,10 +9,16 @@ import { auth } from './middleware/auth';
 
 dotenv.config();
 const app = express();
-const { MONGO_URL, PORT } = process.env;
+const { MONGO_URL } = process.env;
+const PORT = Number(process.env.PORT) || 8080;
+
+if (!MONGO_URL) {
+  console.error("MONGO_URL is required");
+  process.exit(1);
+}
 
 mongoose
-  .connect(MONGO_URL as string, {
+  .connect(MONGO_URL, {
     dbName: "chess-helper",
   })
   .then(() => console.log("MongoDB is  connected successfully"))
@@ -56,4 +62,3 @@ app.use("/hello", (req, res) => {
 app.use(auth);
 app.use("/", authRoutes);
 app.use("/", pgnRoutes);
-

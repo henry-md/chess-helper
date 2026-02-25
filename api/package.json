@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch index.ts",
+    "start": "tsx index.ts",
     "seed": "tsx db/seed.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -25,6 +26,7 @@
     "mongodb": "4.1",
     "mongoose": "^8.8.1",
     "nodemon": "^3.1.7",
+    "tsx": "^4.19.4",
     "winston": "^3.17.0"
   },
   "devDependencies": {
@@ -40,7 +42,6 @@
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-prettier": "^5.4.0",
     "prettier": "^3.5.3",
-    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
 }
