@@ -41,3 +41,74 @@ button.w-full {
   color: white !important;
   background-color: var(--board-brown) !important;
 }
+
+.lesson-celebration-layer {
+  z-index: 20;
+}
+
+.lesson-confetti-piece {
+  position: absolute;
+  top: -12%;
+  width: 10px;
+  height: 16px;
+  opacity: 0;
+  animation-name: lesson-confetti-fall;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+
+.lesson-complete-banner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: min(80%, 360px);
+  text-align: center;
+  border-radius: 0.75rem;
+  border: 2px solid #f59e0b;
+  background: rgba(255, 250, 237, 0.96);
+  box-shadow: 0 12px 32px rgba(76, 25, 0, 0.24);
+  padding: 0.9rem 1rem 0.8rem;
+  animation: lesson-complete-pop 360ms ease-out;
+}
+
+.lesson-complete-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #7c2d12;
+}
+
+.lesson-complete-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #92400e;
+}
+
+@keyframes lesson-complete-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes lesson-confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -24px, 0) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift, 0px), 120vh, 0) rotate(560deg);
+  }
+}

@@ -10,6 +10,7 @@ import { StoredPgn } from '@/lib/types';
 import { $pgn } from '@/store/pgn';
 import { toast } from 'react-toastify';
 import useLineQuizSession from "@/hooks/game/use-line-quiz-session";
+import LessonCompleteCelebration from "@/components/lesson-complete-celebration";
 
 // Custom hooks for game state
 import useSkipping from '@/hooks/game/use-skipping';
@@ -37,6 +38,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   const {
     currFen,
     isAutoPlaying,
+    isCompleted,
     onPieceDrop,
     showHint,
     stepBackward,
@@ -47,6 +49,24 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     isSkipping,
     onSessionComplete: () => toast.success("Game completed!"),
   });
+
+  const [showCelebrationAnimation, setShowCelebrationAnimation] = useState(false);
+
+  useEffect(() => {
+    if (!isCompleted) {
+      setShowCelebrationAnimation(false);
+      return;
+    }
+
+    setShowCelebrationAnimation(true);
+    const timeoutId = window.setTimeout(() => {
+      setShowCelebrationAnimation(false);
+    }, 2800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isCompleted]);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -73,11 +93,15 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
         "w-full h-[100vh] flex justify-center items-center gap-4"
       )}>
         {/* Board */}
-        <div style={{ width: 'min(80vh, 70vw)' }}>
+        <div className="relative" style={{ width: 'min(80vh, 70vw)' }}>
           <Board
             currFen={currFen} 
             onPieceDrop={onPieceDrop}
             isWhite={isPlayingWhite}
+          />
+          <LessonCompleteCelebration
+            isCompleted={isCompleted}
+            showAnimation={showCelebrationAnimation}
           />
         </div>
 
@@ -147,10 +171,21 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           <button 
             className="w-full p-2 border border-gray-300 rounded hover:bg-gray-100"
             onClick={showHint}
-            disabled={isAutoPlaying}
+            disabled={isAutoPlaying || isCompleted}
           >
             Hint
           </button>
+
+          <div
+            className={cn(
+              "w-full rounded border px-3 py-2 text-center text-sm font-semibold",
+              isCompleted
+                ? "bg-emerald-100/80 border-emerald-500"
+                : "bg-[var(--background-beige-dark)] border-[var(--beige-outline)]"
+            )}
+          >
+            {isCompleted ? "Lesson complete: all lines covered." : "Lesson in progress"}
+          </div>
         </div>
       </div>
       {pgn && !isTutorial && (

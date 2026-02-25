@@ -16,6 +16,7 @@ type UseLineQuizSessionArgs = {
 type UseLineQuizSessionResult = {
   currFen: string;
   isAutoPlaying: boolean;
+  isCompleted: boolean;
   onPieceDrop: (sourceSquare: string, targetSquare: string) => boolean;
   stepForward: () => void;
   stepBackward: () => void;
@@ -37,7 +38,9 @@ const useLineQuizSession = ({
 
   const [currFen, setCurrFen] = useState(START_FEN);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const isAutoPlayingRef = useRef(false);
+  const isCompletedRef = useRef(false);
 
   const chessRef = useRef(new Chess());
   const movesRef = useRef<string[]>([]);
@@ -75,6 +78,10 @@ const useLineQuizSession = ({
   useEffect(() => {
     isAutoPlayingRef.current = isAutoPlaying;
   }, [isAutoPlaying]);
+
+  useEffect(() => {
+    isCompletedRef.current = isCompleted;
+  }, [isCompleted]);
 
   const clearScheduledActions = useCallback(() => {
     for (const timeoutId of scheduledTimeoutIdsRef.current) {
@@ -132,6 +139,8 @@ const useLineQuizSession = ({
       return;
     }
 
+    setIsAutoPlaying(false);
+    setIsCompleted(true);
     onSessionCompleteRef.current?.();
   }, []);
 
@@ -171,6 +180,7 @@ const useLineQuizSession = ({
       currentLineIdxRef.current = lineIndex;
       currentMoveIdxRef.current = -1;
       furthestMoveIdxRef.current = -1;
+      setIsCompleted(false);
 
       chessRef.current.reset();
       if (line) {
@@ -211,6 +221,10 @@ const useLineQuizSession = ({
 
   const onPieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string): boolean => {
+      if (isCompletedRef.current) {
+        return false;
+      }
+
       if (isAutoPlayingRef.current) {
         return false;
       }
@@ -264,6 +278,10 @@ const useLineQuizSession = ({
   );
 
   const stepForward = useCallback(() => {
+    if (isCompletedRef.current) {
+      return;
+    }
+
     if (isAutoPlayingRef.current) {
       return;
     }
@@ -288,6 +306,10 @@ const useLineQuizSession = ({
   }, []);
 
   const stepBackward = useCallback(() => {
+    if (isCompletedRef.current) {
+      return;
+    }
+
     if (isAutoPlayingRef.current) {
       return;
     }
@@ -302,6 +324,10 @@ const useLineQuizSession = ({
   }, []);
 
   const showHint = useCallback(() => {
+    if (isCompletedRef.current) {
+      return;
+    }
+
     if (isAutoPlayingRef.current) {
       return;
     }
@@ -338,6 +364,7 @@ const useLineQuizSession = ({
       currentLineIdxRef.current = 0;
       currentMoveIdxRef.current = -1;
       furthestMoveIdxRef.current = -1;
+      setIsCompleted(false);
       setCurrFen(chessRef.current.fen());
       return undefined;
     }
@@ -349,6 +376,7 @@ const useLineQuizSession = ({
   return {
     currFen,
     isAutoPlaying,
+    isCompleted,
     onPieceDrop,
     stepForward,
     stepBackward,
