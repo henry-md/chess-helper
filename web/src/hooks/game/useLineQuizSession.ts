@@ -5,7 +5,11 @@ import {
   BUFFER_TIME_BEFORE_NEXT_LINE,
   LENGTH_OF_OPPONENT_MOVE,
 } from "@/constants";
-import { findNumMovesToFirstBranch, moveTextToMainlines } from "@/utils/chess/pgn-parser";
+import {
+  findNumMovesToFirstBranch,
+  moveTextToMainlines,
+  toPgnMoveOccurrenceKey,
+} from "@/utils/chess/pgn-parser";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const AUTO_MOVE_DELAY_MS = BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE;
@@ -34,7 +38,8 @@ type UseLineQuizSessionResult = {
   remainingLineCount: number;
   currentMoveIndex: number;
   nextExpectedMoveSan: string | null;
-  recentAutoMoveSan: string | null;
+  nextMovePositionKey: string;
+  recentAutoMoveOccurrenceKey: string | null;
   moveRejectionMessage: string | null;
   onPieceDrop: (sourceSquare: string, targetSquare: string) => boolean;
   continueToNextLine: () => void;
@@ -106,7 +111,10 @@ const useLineQuizSession = ({
   const [remainingLineCount, setRemainingLineCount] = useState(lineMovesByIndex.length);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(-1);
   const [nextExpectedMoveSan, setNextExpectedMoveSan] = useState<string | null>(null);
-  const [recentAutoMoveSan, setRecentAutoMoveSan] = useState<string | null>(null);
+  const [nextMovePositionKey, setNextMovePositionKey] = useState("0|");
+  const [recentAutoMoveOccurrenceKey, setRecentAutoMoveOccurrenceKey] = useState<string | null>(
+    null
+  );
   const [moveRejectionMessage, setMoveRejectionMessage] = useState<string | null>(null);
   const isAutoPlayingRef = useRef(false);
   const isCompletedRef = useRef(false);
@@ -193,20 +201,27 @@ const useLineQuizSession = ({
       window.clearTimeout(autoMoveHighlightTimeoutIdRef.current);
       autoMoveHighlightTimeoutIdRef.current = null;
     }
-    setRecentAutoMoveSan(null);
+    setRecentAutoMoveOccurrenceKey(null);
   }, []);
 
-  const flashAutoMoveSan = useCallback(
-    (moveSan: string) => {
+  const flashAutoMoveOccurrence = useCallback(
+    (positionKey: string, moveSan: string) => {
       clearAutoMoveHighlight();
-      setRecentAutoMoveSan(moveSan);
+      setRecentAutoMoveOccurrenceKey(toPgnMoveOccurrenceKey(positionKey, moveSan));
       autoMoveHighlightTimeoutIdRef.current = window.setTimeout(() => {
         autoMoveHighlightTimeoutIdRef.current = null;
-        setRecentAutoMoveSan(null);
+        setRecentAutoMoveOccurrenceKey(null);
       }, OPPONENT_MOVE_HOVER_DURATION_MS - BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE);
     },
     [clearAutoMoveHighlight]
   );
+
+  const syncNextMoveState = useCallback((currentMoveIndexInLine: number) => {
+    const nextMoveIndexInLine = currentMoveIndexInLine + 1;
+    const playedMoves = chessRef.current.history();
+    setNextExpectedMoveSan(movesRef.current[nextMoveIndexInLine] ?? null);
+    setNextMovePositionKey(getPositionKey(nextMoveIndexInLine, playedMoves));
+  }, []);
 
   const clearScheduledActions = useCallback(() => {
     clearScheduledTimeouts();
@@ -277,7 +292,7 @@ const useLineQuizSession = ({
       return false;
     }
 
-    flashAutoMoveSan(selectedMove);
+    flashAutoMoveOccurrence(positionKey, selectedMove);
 
     if (selectedLineIndices.length > 0) {
       const incompleteLineIndices = selectedLineIndices.filter(
@@ -290,11 +305,11 @@ const useLineQuizSession = ({
 
     currentMoveIdxRef.current = nextMoveIndex;
     setCurrentMoveIndex(nextMoveIndex);
-    setNextExpectedMoveSan(movesRef.current[nextMoveIndex + 1] ?? null);
+    syncNextMoveState(nextMoveIndex);
     furthestMoveIdxRef.current = Math.max(furthestMoveIdxRef.current, nextMoveIndex);
     setCurrFen(chessRef.current.fen());
     return true;
-  }, [flashAutoMoveSan]);
+  }, [flashAutoMoveOccurrence, syncNextMoveState]);
 
   const startLineRef = useRef<(lineIndex: number) => void>(() => {});
   const runAutoMovesRef = useRef<(pliesRemaining: number, delayMs: number) => void>(() => {});
@@ -397,10 +412,9 @@ const useLineQuizSession = ({
       chessRef.current.reset();
       movesRef.current = lineMoves;
       setCurrFen(chessRef.current.fen());
-      setNextExpectedMoveSan(movesRef.current[0] ?? null);
+      syncNextMoveState(-1);
 
       if (movesRef.current.length === 0) {
-        setNextExpectedMoveSan(null);
         advanceToNextLineOrComplete();
         return;
       }
@@ -425,7 +439,7 @@ const useLineQuizSession = ({
         setIsAutoPlaying(false);
       }
     },
-    [advanceToNextLineOrComplete, clearScheduledActions]
+    [advanceToNextLineOrComplete, clearScheduledActions, syncNextMoveState]
   );
   startLineRef.current = startLine;
 
@@ -526,14 +540,13 @@ const useLineQuizSession = ({
 
       currentMoveIdxRef.current = nextMoveIndex;
       setCurrentMoveIndex(nextMoveIndex);
-      setNextExpectedMoveSan(movesRef.current[nextMoveIndex + 1] ?? null);
-      setRecentAutoMoveSan(null);
+      syncNextMoveState(nextMoveIndex);
+      setRecentAutoMoveOccurrenceKey(null);
       furthestMoveIdxRef.current = Math.max(furthestMoveIdxRef.current, nextMoveIndex);
       setCurrFen(chessRef.current.fen());
       setMoveRejectionMessage(null);
 
       if (isCurrentLineComplete()) {
-        setNextExpectedMoveSan(null);
         advanceToNextLineOrComplete();
         return true;
       }
@@ -544,7 +557,7 @@ const useLineQuizSession = ({
 
       return true;
     },
-    [advanceToNextLineOrComplete, isCurrentLineComplete, isUsersTurn]
+    [advanceToNextLineOrComplete, isCurrentLineComplete, isUsersTurn, syncNextMoveState]
   );
 
   const stepForward = useCallback(() => {
@@ -581,10 +594,10 @@ const useLineQuizSession = ({
 
     currentMoveIdxRef.current = nextMoveIndex;
     setCurrentMoveIndex(nextMoveIndex);
-    setNextExpectedMoveSan(movesRef.current[nextMoveIndex + 1] ?? null);
-    setRecentAutoMoveSan(null);
+    syncNextMoveState(nextMoveIndex);
+    setRecentAutoMoveOccurrenceKey(null);
     setCurrFen(chessRef.current.fen());
-  }, []);
+  }, [syncNextMoveState]);
 
   const stepBackward = useCallback(() => {
     if (isCompletedRef.current) {
@@ -610,10 +623,10 @@ const useLineQuizSession = ({
     chessRef.current.undo();
     currentMoveIdxRef.current -= 1;
     setCurrentMoveIndex(currentMoveIdxRef.current);
-    setNextExpectedMoveSan(movesRef.current[currentMoveIdxRef.current + 1] ?? null);
-    setRecentAutoMoveSan(null);
+    syncNextMoveState(currentMoveIdxRef.current);
+    setRecentAutoMoveOccurrenceKey(null);
     setCurrFen(chessRef.current.fen());
-  }, []);
+  }, [syncNextMoveState]);
 
   const showHint = useCallback(() => {
     if (isCompletedRef.current) {
@@ -694,6 +707,7 @@ const useLineQuizSession = ({
       currentMoveIdxRef.current = -1;
       setCurrentMoveIndex(-1);
       setNextExpectedMoveSan(null);
+      setNextMovePositionKey("0|");
       furthestMoveIdxRef.current = -1;
       setIsCompleted(false);
       setIsTransitioningBetweenLines(false);
@@ -717,6 +731,7 @@ const useLineQuizSession = ({
       setIsAwaitingLineAdvance(false);
       setRemainingLineCount(0);
       setNextExpectedMoveSan(null);
+      setNextMovePositionKey("0|");
       return clearScheduledActions;
     }
 
@@ -740,7 +755,8 @@ const useLineQuizSession = ({
     remainingLineCount,
     currentMoveIndex,
     nextExpectedMoveSan,
-    recentAutoMoveSan,
+    nextMovePositionKey,
+    recentAutoMoveOccurrenceKey,
     moveRejectionMessage,
     onPieceDrop,
     continueToNextLine,

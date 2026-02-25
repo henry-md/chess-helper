@@ -14,7 +14,11 @@ import useLineQuizSession from "@/hooks/game/useLineQuizSession";
 import LessonCompleteCelebration from "@/components/LessonCompleteCelebration";
 import LineTransitionCelebration from "@/components/LineTransitionCelebration";
 import TutorialCoachmarks from "@/components/TutorialCoachmarks";
-import { moveTextToMainlines } from "@/utils/chess/pgn-parser";
+import {
+  moveTextToDisplayTokens,
+  moveTextToMainlines,
+  toPgnMoveOccurrenceKey,
+} from "@/utils/chess/pgn-parser";
 import {
   BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE,
   CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL,
@@ -72,10 +76,6 @@ type HighlightedTextSegment = {
   text: string;
   isHighlighted: boolean;
 };
-
-const stripMoveAnnotation = (token: string): string =>
-  token.replace(/^[([{]+/, "").replace(/[)\]}]+$/, "").replace(/[!?+#]+$/g, "");
-const normalizeFen = (fen: string): string => fen.split(" ").slice(0, 4).join(" ");
 
 const getSquareTopLeft = (
   square: string,
@@ -160,7 +160,8 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     remainingLineCount,
     currentMoveIndex,
     nextExpectedMoveSan,
-    recentAutoMoveSan,
+    nextMovePositionKey,
+    recentAutoMoveOccurrenceKey,
     moveRejectionMessage,
     onPieceDrop,
     continueToNextLine,
@@ -195,9 +196,8 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     const positionToMoves = new Map<string, Set<string>>();
 
     for (const lineMoves of tutorialMainlineMoves) {
-      const chess = new Chess();
       for (let moveIndex = 0; moveIndex < lineMoves.length; moveIndex++) {
-        const positionKey = `${moveIndex}|${normalizeFen(chess.fen())}`;
+        const positionKey = `${moveIndex}|${lineMoves.slice(0, moveIndex).join(" ")}`;
         const nextSan = lineMoves[moveIndex];
 
         let candidateMoves = positionToMoves.get(positionKey);
@@ -206,10 +206,6 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           positionToMoves.set(positionKey, candidateMoves);
         }
         candidateMoves.add(nextSan);
-
-        if (!chess.move(nextSan)) {
-          break;
-        }
       }
     }
 
@@ -314,7 +310,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     isUsersTurnByIndex &&
     firstUnguidedUserMoveIndex !== null &&
     nextMoveIndex === firstUnguidedUserMoveIndex;
-  const currentBranchPositionKey = `${nextMoveIndex}|${normalizeFen(currFen)}`;
+  const currentBranchPositionKey = nextMovePositionKey;
   const hasBranchOptionsAtCurrentPosition = branchPositionKeys.has(currentBranchPositionKey);
   const currentBranchOccurrenceKey =
     isTutorialBranchGuideActive &&
@@ -475,7 +471,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     return "You are seeing this branch again. Your opponent will now play the other move so that we can explore all the lines.";
   }, [branchHighlightsDismissedCount, branchPopupIsUsersTurn, branchPopupOptionCount]);
 
-  const persistedBranchHighlightSans = useMemo<Set<string> | null>(() => {
+  const persistedBranchHighlightOccurrenceKeys = useMemo<Set<string> | null>(() => {
     if (
       !isTutorial ||
       !CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL ||
@@ -490,7 +486,9 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
       return null;
     }
 
-    return new Set(branchMoveSans);
+    return new Set(
+      branchMoveSans.map((san) => toPgnMoveOccurrenceKey(currentBranchPositionKey, san))
+    );
   }, [
     branchMoveOptionsByPosition,
     currentBranchPositionKey,
@@ -499,13 +497,25 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     isUsersTurnByIndex,
   ]);
 
-  const highlightedBranchSans = useMemo<Set<string> | null>(() => {
-    if (isBranchPopupVisible && branchPopupMoveContexts.length > 0) {
-      return new Set(branchPopupMoveContexts.map((context) => context.san));
+  const highlightedBranchOccurrenceKeys = useMemo<Set<string> | null>(() => {
+    if (isBranchPopupVisible && branchPopupPositionKey) {
+      const popupBranchMoveSans = branchMoveOptionsByPosition.get(branchPopupPositionKey) ?? [];
+      if (popupBranchMoveSans.length === 0) {
+        return null;
+      }
+
+      return new Set(
+        popupBranchMoveSans.map((san) => toPgnMoveOccurrenceKey(branchPopupPositionKey, san))
+      );
     }
 
-    return persistedBranchHighlightSans;
-  }, [branchPopupMoveContexts, isBranchPopupVisible, persistedBranchHighlightSans]);
+    return persistedBranchHighlightOccurrenceKeys;
+  }, [
+    branchMoveOptionsByPosition,
+    branchPopupPositionKey,
+    isBranchPopupVisible,
+    persistedBranchHighlightOccurrenceKeys,
+  ]);
   const isPgnMoveHighlightingEnabled = isTutorial || isMoveHighlightingEnabled;
   const shouldContinuePgnMoveHighlighting =
     isPgnMoveHighlightingEnabled &&
@@ -513,63 +523,82 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     !isAwaitingLineAdvance;
   const totalOpponentMoveHoverDurationMs =
     BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE + LENGTH_OF_OPPONENT_MOVE;
-  const pendingOpponentMoveSan =
+  const pendingOpponentMoveOccurrenceKey =
     shouldContinuePgnMoveHighlighting &&
     !isUsersTurnByIndex &&
     isAutoPlaying &&
-    !hasBranchOptionsAtCurrentPosition
-      ? nextExpectedMoveSan
+    !hasBranchOptionsAtCurrentPosition &&
+    nextExpectedMoveSan
+      ? toPgnMoveOccurrenceKey(nextMovePositionKey, nextExpectedMoveSan)
       : null;
-  const highlightedOpponentMoveSan =
-    shouldContinuePgnMoveHighlighting && totalOpponentMoveHoverDurationMs > 0 && recentAutoMoveSan
-      ? recentAutoMoveSan
+  const highlightedOpponentMoveOccurrenceKey =
+    shouldContinuePgnMoveHighlighting &&
+    totalOpponentMoveHoverDurationMs > 0 &&
+    recentAutoMoveOccurrenceKey
+      ? recentAutoMoveOccurrenceKey
       : null;
-  const highlightedPgnMoveSan =
-    highlightedOpponentMoveSan ??
-    activeSpotlightMoveContext?.san ??
+  const highlightedPgnMoveOccurrenceKey =
+    highlightedOpponentMoveOccurrenceKey ??
+    (activeSpotlightMoveContext
+      ? toPgnMoveOccurrenceKey(nextMovePositionKey, activeSpotlightMoveContext.san)
+      : null) ??
     (shouldContinuePgnMoveHighlighting && isUsersTurnByIndex
       ? nextExpectedMoveSan
-      : pendingOpponentMoveSan);
+        ? toPgnMoveOccurrenceKey(nextMovePositionKey, nextExpectedMoveSan)
+        : null
+      : pendingOpponentMoveOccurrenceKey);
+
+  const pgnDisplayTokens = useMemo(() => moveTextToDisplayTokens(pgn?.moveText || ""), [pgn?.moveText]);
 
   const pgnTextSegments = useMemo<HighlightedTextSegment[]>(() => {
-    const moveText = pgn?.moveText || "";
-    if (!isPgnMoveHighlightingEnabled || moveText.length === 0) {
-      return [{ key: "raw", text: moveText, isHighlighted: false }];
+    if (!isPgnMoveHighlightingEnabled || pgnDisplayTokens.length === 0) {
+      return [{ key: "raw", text: pgn?.moveText || "", isHighlighted: false }];
     }
 
-    const tokens = moveText.split(/(\s+)/);
-    let hasHighlightedToken = false;
-    const unmatchedBranchSans = highlightedBranchSans ? new Set(highlightedBranchSans) : null;
+    const unmatchedBranchOccurrenceKeys = highlightedBranchOccurrenceKeys
+      ? new Set(highlightedBranchOccurrenceKeys)
+      : null;
 
-    return tokens.map((token, index) => {
-      const isWhitespace = token.trim().length === 0;
-      const sanitizedToken = stripMoveAnnotation(token);
+    return pgnDisplayTokens.map((token) => {
       let isHighlightMatch = false;
 
-      if (!isWhitespace && unmatchedBranchSans && unmatchedBranchSans.has(sanitizedToken)) {
-        isHighlightMatch = true;
-        unmatchedBranchSans.delete(sanitizedToken);
-      } else if (
-        !isWhitespace &&
-        !unmatchedBranchSans &&
-        !hasHighlightedToken &&
-        highlightedPgnMoveSan !== null &&
-        sanitizedToken === highlightedPgnMoveSan
+      if (
+        token.occurrenceKey &&
+        unmatchedBranchOccurrenceKeys &&
+        unmatchedBranchOccurrenceKeys.has(token.occurrenceKey)
       ) {
         isHighlightMatch = true;
-      }
-
-      if (isHighlightMatch) {
-        hasHighlightedToken = true;
+        unmatchedBranchOccurrenceKeys.delete(token.occurrenceKey);
+      } else if (token.occurrenceKey && !unmatchedBranchOccurrenceKeys && highlightedPgnMoveOccurrenceKey) {
+        isHighlightMatch = token.occurrenceKey === highlightedPgnMoveOccurrenceKey;
       }
 
       return {
-        key: `${index}-${token}`,
-        text: token,
+        key: token.key,
+        text: token.text,
         isHighlighted: isHighlightMatch,
       };
     });
-  }, [highlightedBranchSans, highlightedPgnMoveSan, isPgnMoveHighlightingEnabled, pgn?.moveText]);
+  }, [
+    highlightedBranchOccurrenceKeys,
+    highlightedPgnMoveOccurrenceKey,
+    isPgnMoveHighlightingEnabled,
+    pgn?.moveText,
+    pgnDisplayTokens,
+  ]);
+
+  const highlightedPgnMoveSan = useMemo(() => {
+    if (!highlightedPgnMoveOccurrenceKey) {
+      return null;
+    }
+
+    const occurrenceSan = highlightedPgnMoveOccurrenceKey.split("|").slice(-1)[0];
+    if (!occurrenceSan) {
+      return null;
+    }
+
+    return occurrenceSan;
+  }, [highlightedPgnMoveOccurrenceKey]);
 
   const isTutorialInteractionLocked =
     isTutorialMoveGuideActive ||

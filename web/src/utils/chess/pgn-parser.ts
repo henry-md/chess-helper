@@ -4,6 +4,12 @@ import { MoveNode } from "@/lib/types";
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 const RESULT_TOKENS = new Set(["1-0", "0-1", "1/2-1/2", "*"]);
+const MOVE_NUMBER_TOKEN_REGEX = /^\d+\.(?:\.\.)?$/;
+const BLOCK_COMMENT_TOKEN_REGEX = /^\{[^}]*\}$/;
+const INLINE_COMMENT_TOKEN_REGEX = /^;[^\n\r]*$/;
+const NAG_TOKEN_REGEX = /^\$\d+$/;
+const PGN_DISPLAY_TOKEN_REGEX =
+  /\s+|\{[^}]*\}|;[^\n\r]*|\$\d+|\d+\.(?:\.\.)?|1-0|0-1|1\/2-1\/2|\*|\(|\)|[^\s(){};]+/g;
 
 const normalizeMoveText = (moveText: string): string => {
   return moveText
@@ -19,6 +25,9 @@ const normalizeMoveText = (moveText: string): string => {
 
 const sanitizeToken = (token: string): string => token.replace(/[!?]+$/g, "");
 
+export const toPgnMoveOccurrenceKey = (positionKey: string, san: string): string =>
+  `${positionKey}|${san}`;
+
 const tokenizeMoveText = (moveText: string): string[] => {
   const normalized = normalizeMoveText(moveText);
   if (!normalized) {
@@ -29,6 +38,126 @@ const tokenizeMoveText = (moveText: string): string[] => {
     .split(" ")
     .map(sanitizeToken)
     .filter((token) => token !== "" && !RESULT_TOKENS.has(token));
+};
+
+type PgnDisplayLexToken = {
+  text: string;
+  isWhitespace: boolean;
+  isOpenParen: boolean;
+  isCloseParen: boolean;
+  san?: string;
+  positionKey?: string;
+  occurrenceKey?: string;
+};
+
+const lexPgnDisplayTokens = (moveText: string): PgnDisplayLexToken[] => {
+  const matches = moveText.match(PGN_DISPLAY_TOKEN_REGEX) ?? [];
+  return matches.map((token) => {
+    const isWhitespace = /^\s+$/.test(token);
+    if (isWhitespace) {
+      return {
+        text: token,
+        isWhitespace: true,
+        isOpenParen: false,
+        isCloseParen: false,
+      };
+    }
+
+    if (token === "(") {
+      return {
+        text: token,
+        isWhitespace: false,
+        isOpenParen: true,
+        isCloseParen: false,
+      };
+    }
+
+    if (token === ")") {
+      return {
+        text: token,
+        isWhitespace: false,
+        isOpenParen: false,
+        isCloseParen: true,
+      };
+    }
+
+    if (
+      BLOCK_COMMENT_TOKEN_REGEX.test(token) ||
+      INLINE_COMMENT_TOKEN_REGEX.test(token) ||
+      NAG_TOKEN_REGEX.test(token) ||
+      MOVE_NUMBER_TOKEN_REGEX.test(token) ||
+      RESULT_TOKENS.has(token)
+    ) {
+      return {
+        text: token,
+        isWhitespace: false,
+        isOpenParen: false,
+        isCloseParen: false,
+      };
+    }
+
+    const san = sanitizeToken(token);
+    return {
+      text: token,
+      isWhitespace: false,
+      isOpenParen: false,
+      isCloseParen: false,
+      san: san.length > 0 ? san : undefined,
+    };
+  });
+};
+
+const annotateDisplayTokenPositions = (
+  tokens: PgnDisplayLexToken[],
+  startIndex: number,
+  seedMoves: string[]
+): number => {
+  let index = startIndex;
+  const currentLineMoves = [...seedMoves];
+
+  while (index < tokens.length) {
+    const token = tokens[index];
+
+    if (token.isOpenParen) {
+      const variationSeed = currentLineMoves.slice(0, Math.max(0, currentLineMoves.length - 1));
+      index = annotateDisplayTokenPositions(tokens, index + 1, variationSeed);
+    } else if (token.isCloseParen) {
+      return index;
+    } else if (token.san) {
+      const positionKey = `${currentLineMoves.length}|${currentLineMoves.join(" ")}`;
+      const occurrenceKey = toPgnMoveOccurrenceKey(positionKey, token.san);
+      token.positionKey = positionKey;
+      token.occurrenceKey = occurrenceKey;
+      currentLineMoves.push(token.san);
+    }
+
+    index += 1;
+  }
+
+  return index;
+};
+
+export type PgnDisplayToken = {
+  key: string;
+  text: string;
+  isWhitespace: boolean;
+  occurrenceKey: string | null;
+};
+
+export const moveTextToDisplayTokens = (moveText: string): PgnDisplayToken[] => {
+  const lexTokens = lexPgnDisplayTokens(moveText);
+  if (lexTokens.length === 0) {
+    return [];
+  }
+
+  annotateDisplayTokenPositions(lexTokens, 0, []);
+
+  return lexTokens.map((token, index) => ({
+    key: `${index}-${token.text}`,
+    text: token.text,
+    isWhitespace: token.isWhitespace,
+    occurrenceKey: token.occurrenceKey ?? null,
+  }));
 };
 
 const parseMainlines = (
