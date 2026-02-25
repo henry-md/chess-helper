@@ -18,6 +18,7 @@ import { moveTextToMainlines } from "@/utils/chess/pgn-parser";
 import {
   BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE,
   CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL,
+  DESTINATION_SQUARE_SPOTLIGHT_BRIGHTNESS_DEGRADATION_FACTOR,
   HIGHLIGHT_DESTINATION_SQUARE_IN_TUTORIAL_IN_NON_BRANCHING_POSITIONS,
   LENGTH_OF_OPPONENT_MOVE,
   MOVES_HIGHLIGHTED_IN_TUTORIAL,
@@ -48,6 +49,7 @@ type SpotlightHole = {
   x: number;
   y: number;
   size: number;
+  maskFill: string;
 };
 
 type SpotlightLayout = {
@@ -56,6 +58,13 @@ type SpotlightLayout = {
   noteLeft: number;
   noteTop: number;
   noteWidth: number;
+};
+
+type ViewportRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 };
 
 type HighlightedTextSegment = {
@@ -140,6 +149,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   const [branchPopupPositionKey, setBranchPopupPositionKey] = useState<string | null>(null);
   const [branchPopupIsUsersTurn, setBranchPopupIsUsersTurn] = useState(false);
   const [isMoveHighlightingEnabled, setIsMoveHighlightingEnabled] = useState(true);
+  const [highlightedPgnTokenRect, setHighlightedPgnTokenRect] = useState<ViewportRect | null>(null);
   const latestBranchOccurrenceKeyRef = useRef<string | null>(null);
   const {
     currFen,
@@ -566,6 +576,12 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     showTutorialLineAdvancePrompt ||
     isPracticePopupVisible ||
     isBranchPopupVisible;
+  const isTutorialDualFocusVisible =
+    isTutorial &&
+    tutorialTourComplete &&
+    isTutorialMoveGuideActive &&
+    activeSpotlightMoveContext !== null &&
+    !isBranchPopupVisible;
 
   const handlePieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string) => {
@@ -696,27 +712,35 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     }
 
     const squareSize = boardSize / 8;
-    const spotlightSquares = new Set<string>();
+    const spotlightSquares = new Map<string, { isDestination: boolean }>();
     for (const moveContext of activeSpotlightMoveContexts) {
-      spotlightSquares.add(moveContext.sourceSquare);
+      spotlightSquares.set(moveContext.sourceSquare, { isDestination: false });
       if (shouldHighlightDestinationSquareInTutorial) {
-        spotlightSquares.add(moveContext.targetSquare);
+        spotlightSquares.set(moveContext.targetSquare, { isDestination: true });
       }
     }
 
-    const sourceSquares = Array.from(spotlightSquares);
-    const holeSize = squareSize;
-    const holes = sourceSquares.flatMap((sourceSquare) => {
+    const holes = Array.from(spotlightSquares.entries()).flatMap(([sourceSquare, metadata]) => {
       const squareTopLeft = getSquareTopLeft(sourceSquare, isPlayingWhite, squareSize);
       if (!squareTopLeft) {
         return [];
       }
+
+      const holeSize = squareSize;
+      const destinationDegradation = Math.max(
+        0,
+        Math.min(1, DESTINATION_SQUARE_SPOTLIGHT_BRIGHTNESS_DEGRADATION_FACTOR)
+      );
+      const destinationMaskChannel = Math.round(destinationDegradation * 255);
+      const destinationMaskHex = destinationMaskChannel.toString(16).padStart(2, "0");
+      const maskFill = metadata.isDestination ? `#${destinationMaskHex}${destinationMaskHex}${destinationMaskHex}` : "#000";
 
       return [
         {
           x: squareTopLeft.x,
           y: squareTopLeft.y,
           size: holeSize,
+          maskFill,
         },
       ];
     });
@@ -748,6 +772,26 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     shouldHighlightDestinationSquareInTutorial,
   ]);
 
+  const tutorialSpotlightViewportHoles = useMemo<Array<ViewportRect & { maskFill: string }>>(() => {
+    if (!isTutorialDualFocusVisible || !tutorialSpotlightLayout) {
+      return [];
+    }
+
+    const boardElement = boardRef.current;
+    if (!boardElement || tutorialSpotlightLayout.holes.length === 0) {
+      return [];
+    }
+
+    const boardRect = boardElement.getBoundingClientRect();
+    return tutorialSpotlightLayout.holes.map((hole) => ({
+      left: boardRect.left + hole.x,
+      top: boardRect.top + hole.y,
+      width: hole.size,
+      height: hole.size,
+      maskFill: hole.maskFill,
+    }));
+  }, [isTutorialDualFocusVisible, tutorialSpotlightLayout]);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (isTutorialInteractionLocked) {
@@ -769,6 +813,47 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [handleKeyDown]);
+
+  useEffect(() => {
+    if (!isTutorialDualFocusVisible) {
+      setHighlightedPgnTokenRect(null);
+      return;
+    }
+
+    const pgnElement = tutorialPgnRef.current;
+    if (!pgnElement) {
+      setHighlightedPgnTokenRect(null);
+      return;
+    }
+
+    const updateTokenRect = () => {
+      const tokenElement = pgnElement.querySelector<HTMLElement>(".tutorial-pgn-token-highlight");
+      if (!tokenElement) {
+        setHighlightedPgnTokenRect(null);
+        return;
+      }
+
+      tokenElement.scrollIntoView({ block: "nearest", inline: "nearest" });
+      const rect = tokenElement.getBoundingClientRect();
+      setHighlightedPgnTokenRect({
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    updateTokenRect();
+    const animationFrameId = window.requestAnimationFrame(updateTokenRect);
+    window.addEventListener("resize", updateTokenRect);
+    pgnElement.addEventListener("scroll", updateTokenRect);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("resize", updateTokenRect);
+      pgnElement.removeEventListener("scroll", updateTokenRect);
+    };
+  }, [isTutorialDualFocusVisible, pgn?.moveText, highlightedPgnMoveSan]);
 
   return (
     <>
@@ -818,7 +903,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
                         width={hole.size}
                         height={hole.size}
                         rx={Math.max(6, Math.min(12, hole.size * 0.14))}
-                        fill="#000"
+                        fill={hole.maskFill}
                       />
                     ))}
                   </mask>
@@ -882,6 +967,51 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               </div>
             </div>
           )}
+          {isTutorialDualFocusVisible &&
+            tutorialSpotlightViewportHoles.length > 0 &&
+            highlightedPgnTokenRect &&
+            typeof window !== "undefined" && (
+              <div className="tutorial-dual-focus-layer" aria-hidden="true">
+                <svg
+                  className="tutorial-dual-focus-svg"
+                  viewBox={`0 0 ${window.innerWidth} ${window.innerHeight}`}
+                  preserveAspectRatio="none"
+                >
+                  <defs>
+                    <mask id={`${spotlightMaskId}-dual-focus`}>
+                      <rect x={0} y={0} width={window.innerWidth} height={window.innerHeight} fill="#fff" />
+                      {tutorialSpotlightViewportHoles.map((hole, index) => (
+                        <rect
+                          key={`dual-focus-hole-${index}`}
+                          x={hole.left}
+                          y={hole.top}
+                          width={hole.width}
+                          height={hole.height}
+                          rx={10}
+                          fill={hole.maskFill}
+                        />
+                      ))}
+                      <rect
+                        x={Math.max(0, highlightedPgnTokenRect.left - 6)}
+                        y={Math.max(0, highlightedPgnTokenRect.top - 4)}
+                        width={highlightedPgnTokenRect.width + 12}
+                        height={highlightedPgnTokenRect.height + 8}
+                        rx={8}
+                        fill="#000"
+                      />
+                    </mask>
+                  </defs>
+                  <rect
+                    className="tutorial-dual-focus-mask"
+                    x={0}
+                    y={0}
+                    width={window.innerWidth}
+                    height={window.innerHeight}
+                    mask={`url(#${spotlightMaskId}-dual-focus)`}
+                  />
+                </svg>
+              </div>
+            )}
         </div>
 
         {/* Aside */}

@@ -228,6 +228,22 @@ button.w-full {
   z-index: 42;
 }
 
+.tutorial-dual-focus-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 41;
+}
+
+.tutorial-dual-focus-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.tutorial-dual-focus-mask {
+  fill: rgba(18, 10, 4, 0.74);
+}
+
 .tutorial-spotlight-svg {
   position: absolute;
   inset: 0;

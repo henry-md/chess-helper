@@ -8,6 +8,7 @@ export const HIGHLIGHT_DESTINATION_SQUARE_IN_TUTORIAL_IN_NON_BRANCHING_POSITIONS
 export const CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL = true;
 export const BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE = 220;
 export const LENGTH_OF_OPPONENT_MOVE = 320;
+export const DESTINATION_SQUARE_SPOTLIGHT_BRIGHTNESS_DEGRADATION_FACTOR = 0.5; // Brightness of destination square relative to source square in tutorial
 
 export const TUTORIAL_NOTES =
   "PGN quick primer: move numbers group White+Black moves (1. e4 e5). Piece letters: N=knight, B=bishop, R=rook, Q=queen, K=king. O-O means king-side castle. Parentheses mark alternative branches to train.";
