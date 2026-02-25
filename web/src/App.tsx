@@ -9,8 +9,8 @@ import Game from "./pages/game";
 // Pages
 import Tutorial from "./pages/tutorial";
 import Dashboard from "./pages/Dashboard";
-import Login from "./pages/login";
-import Register from "./pages/register";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
 
 function App() {
