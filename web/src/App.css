@@ -132,6 +132,108 @@ button.w-full {
   }
 }
 
+/* Tutorial coachmarks */
+.tutorial-highlight {
+  position: fixed;
+  border: 2px solid rgba(180, 83, 9, 0.82);
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(36, 18, 6, 0.18), 0 0 0 6px rgba(251, 191, 36, 0.22);
+  pointer-events: none;
+  z-index: 40;
+  animation: tutorial-highlight-pulse 900ms ease-in-out infinite;
+}
+
+.tutorial-tooltip-card {
+  position: fixed;
+  z-index: 41;
+  border-radius: 12px;
+  border: 1px solid rgba(146, 64, 14, 0.45);
+  background: rgba(255, 252, 245, 0.98);
+  box-shadow: 0 12px 30px rgba(49, 24, 8, 0.22);
+  padding: 12px 12px 10px;
+}
+
+.tutorial-tooltip-title {
+  margin: 0;
+  font-size: 0.97rem;
+  font-weight: 800;
+  color: #7c2d12;
+}
+
+.tutorial-tooltip-body {
+  margin: 7px 0 10px;
+  font-size: 0.82rem;
+  line-height: 1.35rem;
+  color: #78350f;
+}
+
+.tutorial-tooltip-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tutorial-tooltip-step {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.tutorial-tooltip-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tutorial-ghost-btn,
+.tutorial-solid-btn {
+  font-size: 0.74rem;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+}
+
+.tutorial-ghost-btn {
+  background: transparent;
+  border-color: rgba(146, 64, 14, 0.35);
+  color: #7c2d12;
+}
+
+.tutorial-ghost-btn:disabled {
+  opacity: 0.45;
+}
+
+.tutorial-solid-btn {
+  background: #b45309;
+  color: #fff8f1;
+}
+
+.tutorial-reopen-btn {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 39;
+  border-radius: 999px;
+  border: 1px solid rgba(146, 64, 14, 0.5);
+  background: rgba(255, 250, 237, 0.96);
+  color: #7c2d12;
+  font-size: 0.73rem;
+  font-weight: 800;
+  padding: 7px 11px;
+}
+
+@keyframes tutorial-highlight-pulse {
+  0%,
+  100% {
+    border-color: rgba(180, 83, 9, 0.75);
+  }
+  50% {
+    border-color: rgba(217, 119, 6, 1);
+  }
+}
+
 @keyframes lesson-confetti-fall {
   0% {
     opacity: 0;

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { TUTORIAL_PGN } from "@/constants";
+import { TUTORIAL_NOTES, TUTORIAL_PGN } from "@/constants";
 import { $pgn, setPgn } from "@/store/pgn";
 import { StoredPgn } from "@/lib/types";
 import Navbar from "../components/Navbar";
@@ -11,9 +11,9 @@ const Tutorial = () => {
     const tutorialPgn: StoredPgn = {
       _id: existingPgn?._id ?? "tutorial",
       userId: existingPgn?.userId ?? "tutorial",
-      title: "Tutorial",
+      title: "Interactive PGN Tutorial",
       moveText: TUTORIAL_PGN,
-      notes: existingPgn?.notes ?? "",
+      notes: TUTORIAL_NOTES,
       isPublic: existingPgn?.isPublic ?? false,
       gameProgress: existingPgn?.gameProgress ?? { visitedNodeHashes: [] },
       gameSettings: existingPgn?.gameSettings ?? {

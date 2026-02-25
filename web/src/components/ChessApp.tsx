@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Board from '@/components/Board';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faToggleOn, faToggleOff } from '@fortawesome/free-solid-svg-icons'
@@ -12,6 +12,7 @@ import { toast } from 'react-toastify';
 import useLineQuizSession from "@/hooks/game/useLineQuizSession";
 import LessonCompleteCelebration from "@/components/LessonCompleteCelebration";
 import LineTransitionCelebration from "@/components/LineTransitionCelebration";
+import TutorialCoachmarks from "@/components/TutorialCoachmarks";
 
 // Custom hooks for game state
 import useSkipping from '@/hooks/game/useSkipping';
@@ -27,6 +28,25 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   const pgn: StoredPgn | null = useStore($pgn);
   
   if (!pgn) return <div>Loading...</div>;
+
+  const boardRef = useRef<HTMLDivElement>(null);
+  const pgnRef = useRef<HTMLTextAreaElement>(null);
+  const colorRef = useRef<HTMLDivElement>(null);
+  const skipRef = useRef<HTMLDivElement>(null);
+  const hintRef = useRef<HTMLButtonElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
+
+  const tutorialTargets = useMemo(
+    () => ({
+      board: boardRef as RefObject<HTMLElement>,
+      pgn: pgnRef as RefObject<HTMLElement>,
+      color: colorRef as RefObject<HTMLElement>,
+      skip: skipRef as RefObject<HTMLElement>,
+      hint: hintRef as RefObject<HTMLElement>,
+      status: statusRef as RefObject<HTMLElement>,
+    }),
+    []
+  );
 
   // Game settings
   const { isSkipping, setIsSkipping } = useSkipping(pgn, { persistRemotely: !isTutorial });
@@ -96,7 +116,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
         "w-full h-[100vh] flex justify-center items-center gap-4"
       )}>
         {/* Board */}
-        <div className="relative" style={{ width: 'min(80vh, 70vw)' }}>
+        <div ref={boardRef} className="relative" style={{ width: 'min(80vh, 70vw)' }}>
           <Board
             currFen={currFen} 
             onPieceDrop={onPieceDrop}
@@ -107,6 +127,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
             showAnimation={showCelebrationAnimation}
           />
           <LineTransitionCelebration isVisible={isTransitioningBetweenLines && !isCompleted} />
+          {isTutorial && <TutorialCoachmarks targets={tutorialTargets} />}
         </div>
 
         {/* Aside */}
@@ -135,6 +156,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               placeholder="Notes"
             />
             <textarea 
+              ref={pgnRef}
               value={pgn?.moveText || ''}
               readOnly={isTutorial}
               onFocus={isTutorial ? (event) => event.currentTarget.blur() : undefined}
@@ -147,7 +169,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           </div>
           
           {/* Game Settings */}
-          <div className="flex flex-row items-center justify-center gap-2">
+          <div ref={colorRef} className="flex flex-row items-center justify-center gap-2">
             Play as:
             <button 
               className={`w-[25px] h-[25px] bg-[var(--board-light)] rounded-md ${isPlayingWhite ? 'border-2 border-[#827662]' : ''} box-border`} 
@@ -158,7 +180,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               onClick={() => setIsPlayingWhite(false)}
             ></button>
           </div>
-          <div className="flex flex-row items-center justify-center gap-2">
+          <div ref={skipRef} className="flex flex-row items-center justify-center gap-2">
             Skip to first branch:
             <button 
               onClick={() => setIsSkipping(!isSkipping)}
@@ -173,6 +195,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
 
           {/* Hint Button */}
           <button 
+            ref={hintRef}
             className="w-full p-2 border border-gray-300 rounded hover:bg-gray-100"
             onClick={showHint}
             disabled={isAutoPlaying || isCompleted}
@@ -181,6 +204,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           </button>
 
           <div
+            ref={statusRef}
             className={cn(
               "w-full rounded border px-3 py-2 text-center text-sm font-semibold",
               isCompleted
