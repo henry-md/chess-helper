@@ -1,14 +1,14 @@
 import { Route, Routes } from "react-router-dom";
 import "react-toastify/dist/ReactToastify.css";
 import { useEffect, useMemo } from "react";
-import useAuth from "@/hooks/use-auth.tsx";
+import useAuth from "@/hooks/use-auth";
 import { $isAuthenticated, setIsAuthenticated } from "./store/auth";
 import { useStore } from "@nanostores/react";
 import Game from "./pages/game";
 
 // Pages
 import Home from "./pages/home";
-import Dashboard from "./pages/dashboard";
+import Dashboard from "./pages/Dashboard";
 import Login from "./pages/login";
 import Register from "./pages/register";
 
@@ -22,14 +22,12 @@ function App() {
     return authenticationRoutes.includes(window.location.pathname);
   }, [window.location.pathname]);
   
-  // Redirect if authentication doesn't match route
+  // Validate auth state but allow guests to browse the app.
   useEffect(() => {
     const checkValidation = async () => {
       const isValidated = await validate();
       setIsAuthenticated(isValidated);
-      if (!isInAuthenticationRoute && !isValidated) {
-        window.location.href = "/login";
-      } else if (isInAuthenticationRoute && isValidated) {
+      if (isInAuthenticationRoute && isValidated) {
         window.location.href = "/dashboard";
       }
     };
