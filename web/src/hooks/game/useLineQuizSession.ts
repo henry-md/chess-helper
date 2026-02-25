@@ -13,6 +13,7 @@ type UseLineQuizSessionArgs = {
   moveText: string;
   isPlayingWhite: boolean;
   isSkipping: boolean;
+  manualLineAdvance?: boolean;
   onSessionComplete?: () => void;
 };
 
@@ -21,8 +22,12 @@ type UseLineQuizSessionResult = {
   isAutoPlaying: boolean;
   isCompleted: boolean;
   isTransitioningBetweenLines: boolean;
+  isAwaitingLineAdvance: boolean;
+  remainingLineCount: number;
+  currentMoveIndex: number;
   moveRejectionMessage: string | null;
   onPieceDrop: (sourceSquare: string, targetSquare: string) => boolean;
+  continueToNextLine: () => void;
   stepForward: () => void;
   stepBackward: () => void;
   showHint: () => void;
@@ -67,6 +72,7 @@ const useLineQuizSession = ({
   moveText,
   isPlayingWhite,
   isSkipping,
+  manualLineAdvance = false,
   onSessionComplete,
 }: UseLineQuizSessionArgs): UseLineQuizSessionResult => {
   const mainlines = useMemo(() => moveTextToMainlines(moveText), [moveText]);
@@ -84,9 +90,13 @@ const useLineQuizSession = ({
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isTransitioningBetweenLines, setIsTransitioningBetweenLines] = useState(false);
+  const [isAwaitingLineAdvance, setIsAwaitingLineAdvance] = useState(false);
+  const [remainingLineCount, setRemainingLineCount] = useState(lineMovesByIndex.length);
+  const [currentMoveIndex, setCurrentMoveIndex] = useState(-1);
   const [moveRejectionMessage, setMoveRejectionMessage] = useState<string | null>(null);
   const isAutoPlayingRef = useRef(false);
   const isCompletedRef = useRef(false);
+  const isAwaitingLineAdvanceRef = useRef(false);
 
   const chessRef = useRef(new Chess());
   const movesRef = useRef<string[]>([]);
@@ -96,9 +106,11 @@ const useLineQuizSession = ({
   const scheduledTimeoutIdsRef = useRef<number[]>([]);
   const completedLineIndicesRef = useRef<Set<number>>(new Set());
   const branchCycleChoicesRef = useRef<Map<string, Set<string>>>(new Map());
+  const pendingNextLineIdxRef = useRef<number | null>(null);
 
   const isPlayingWhiteRef = useRef(isPlayingWhite);
   const isSkippingRef = useRef(isSkipping);
+  const manualLineAdvanceRef = useRef(manualLineAdvance);
   const skipPliesRef = useRef(skipPlies);
   const lineMovesByIndexRef = useRef(lineMovesByIndex);
   const positionMoveLineIndexRef = useRef(positionMoveLineIndex);
@@ -111,6 +123,10 @@ const useLineQuizSession = ({
   useEffect(() => {
     isSkippingRef.current = isSkipping;
   }, [isSkipping]);
+
+  useEffect(() => {
+    manualLineAdvanceRef.current = manualLineAdvance;
+  }, [manualLineAdvance]);
 
   useEffect(() => {
     skipPliesRef.current = skipPlies;
@@ -136,12 +152,18 @@ const useLineQuizSession = ({
     isCompletedRef.current = isCompleted;
   }, [isCompleted]);
 
+  useEffect(() => {
+    isAwaitingLineAdvanceRef.current = isAwaitingLineAdvance;
+  }, [isAwaitingLineAdvance]);
+
   const clearScheduledActions = useCallback(() => {
     for (const timeoutId of scheduledTimeoutIdsRef.current) {
       window.clearTimeout(timeoutId);
     }
     scheduledTimeoutIdsRef.current = [];
     setIsTransitioningBetweenLines(false);
+    setIsAwaitingLineAdvance(false);
+    pendingNextLineIdxRef.current = null;
     setIsAutoPlaying(false);
   }, []);
 
@@ -179,6 +201,7 @@ const useLineQuizSession = ({
     }
 
     currentMoveIdxRef.current = nextMoveIndex;
+    setCurrentMoveIndex(nextMoveIndex);
     furthestMoveIdxRef.current = Math.max(furthestMoveIdxRef.current, nextMoveIndex);
     setCurrFen(chessRef.current.fen());
     return true;
@@ -203,6 +226,17 @@ const useLineQuizSession = ({
 
     const nextLineIdx = getNextIncompleteLineIndex();
     if (nextLineIdx !== null) {
+      const remaining = lineMovesByIndexRef.current.length - completedLineIndicesRef.current.size;
+      setRemainingLineCount(Math.max(remaining, 0));
+
+      if (manualLineAdvanceRef.current) {
+        pendingNextLineIdxRef.current = nextLineIdx;
+        setIsTransitioningBetweenLines(true);
+        setIsAwaitingLineAdvance(true);
+        setIsAutoPlaying(false);
+        return;
+      }
+
       setIsTransitioningBetweenLines(true);
       setIsAutoPlaying(true);
       scheduleAction(() => {
@@ -212,6 +246,9 @@ const useLineQuizSession = ({
     }
 
     setIsTransitioningBetweenLines(false);
+    setIsAwaitingLineAdvance(false);
+    pendingNextLineIdxRef.current = null;
+    setRemainingLineCount(0);
     setIsAutoPlaying(false);
     setIsCompleted(true);
     onSessionCompleteRef.current?.();
@@ -252,6 +289,7 @@ const useLineQuizSession = ({
       const lineMoves = lineMovesByIndexRef.current[lineIndex] ?? [];
       currentLineIdxRef.current = lineIndex;
       currentMoveIdxRef.current = -1;
+      setCurrentMoveIndex(-1);
       furthestMoveIdxRef.current = -1;
       setIsCompleted(false);
       setIsTransitioningBetweenLines(false);
@@ -290,6 +328,17 @@ const useLineQuizSession = ({
   );
   startLineRef.current = startLine;
 
+  const continueToNextLine = useCallback(() => {
+    const nextLineIdx = pendingNextLineIdxRef.current;
+    if (nextLineIdx === null) {
+      return;
+    }
+
+    pendingNextLineIdxRef.current = null;
+    setIsAwaitingLineAdvance(false);
+    startLineRef.current(nextLineIdx);
+  }, []);
+
   const onPieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string): boolean => {
       if (isCompletedRef.current) {
@@ -297,6 +346,10 @@ const useLineQuizSession = ({
       }
 
       if (isAutoPlayingRef.current) {
+        return false;
+      }
+
+      if (isAwaitingLineAdvanceRef.current) {
         return false;
       }
 
@@ -367,6 +420,7 @@ const useLineQuizSession = ({
       }
 
       currentMoveIdxRef.current = nextMoveIndex;
+      setCurrentMoveIndex(nextMoveIndex);
       furthestMoveIdxRef.current = Math.max(furthestMoveIdxRef.current, nextMoveIndex);
       setCurrFen(chessRef.current.fen());
       setMoveRejectionMessage(null);
@@ -394,6 +448,10 @@ const useLineQuizSession = ({
       return;
     }
 
+    if (isAwaitingLineAdvanceRef.current) {
+      return;
+    }
+
     if (currentMoveIdxRef.current >= furthestMoveIdxRef.current) {
       return;
     }
@@ -410,6 +468,7 @@ const useLineQuizSession = ({
     }
 
     currentMoveIdxRef.current = nextMoveIndex;
+    setCurrentMoveIndex(nextMoveIndex);
     setCurrFen(chessRef.current.fen());
   }, []);
 
@@ -422,12 +481,17 @@ const useLineQuizSession = ({
       return;
     }
 
+    if (isAwaitingLineAdvanceRef.current) {
+      return;
+    }
+
     if (currentMoveIdxRef.current < 0) {
       return;
     }
 
     chessRef.current.undo();
     currentMoveIdxRef.current -= 1;
+    setCurrentMoveIndex(currentMoveIdxRef.current);
     setCurrFen(chessRef.current.fen());
   }, []);
 
@@ -437,6 +501,10 @@ const useLineQuizSession = ({
     }
 
     if (isAutoPlayingRef.current) {
+      return;
+    }
+
+    if (isAwaitingLineAdvanceRef.current) {
       return;
     }
 
@@ -471,11 +539,15 @@ const useLineQuizSession = ({
       movesRef.current = [];
       completedLineIndicesRef.current = new Set();
       branchCycleChoicesRef.current = new Map();
+      pendingNextLineIdxRef.current = null;
       currentLineIdxRef.current = 0;
       currentMoveIdxRef.current = -1;
+      setCurrentMoveIndex(-1);
       furthestMoveIdxRef.current = -1;
       setIsCompleted(false);
       setIsTransitioningBetweenLines(false);
+      setIsAwaitingLineAdvance(false);
+      setRemainingLineCount(0);
       setMoveRejectionMessage(null);
       setCurrFen(chessRef.current.fen());
       return undefined;
@@ -483,11 +555,16 @@ const useLineQuizSession = ({
 
     completedLineIndicesRef.current = new Set();
     branchCycleChoicesRef.current = new Map();
+    pendingNextLineIdxRef.current = null;
+    setIsAwaitingLineAdvance(false);
+    setRemainingLineCount(lineMovesByIndexRef.current.length);
 
     const firstLineIdx = getNextIncompleteLineIndex();
     if (firstLineIdx === null) {
       setIsCompleted(true);
       setIsTransitioningBetweenLines(false);
+      setIsAwaitingLineAdvance(false);
+      setRemainingLineCount(0);
       return clearScheduledActions;
     }
 
@@ -507,8 +584,12 @@ const useLineQuizSession = ({
     isAutoPlaying,
     isCompleted,
     isTransitioningBetweenLines,
+    isAwaitingLineAdvance,
+    remainingLineCount,
+    currentMoveIndex,
     moveRejectionMessage,
     onPieceDrop,
+    continueToNextLine,
     stepForward,
     stepBackward,
     showHint,

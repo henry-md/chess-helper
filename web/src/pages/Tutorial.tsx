@@ -16,7 +16,7 @@ const Tutorial = () => {
       notes: TUTORIAL_NOTES,
       isPublic: existingPgn?.isPublic ?? false,
       gameProgress: existingPgn?.gameProgress ?? { visitedNodeHashes: [] },
-      gameSettings: existingPgn?.gameSettings ?? {
+      gameSettings: {
         isPlayingWhite: true,
         isSkipping: false,
       },

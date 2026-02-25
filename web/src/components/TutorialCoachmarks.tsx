@@ -6,6 +6,7 @@ type TutorialTargets = Record<TutorialTargetKey, RefObject<HTMLElement>>;
 
 type TutorialCoachmarksProps = {
   targets: TutorialTargets;
+  onComplete?: () => void;
 };
 
 type TutorialStep = {
@@ -21,7 +22,7 @@ const clamp = (value: number, min: number, max: number): number => {
   return Math.min(Math.max(value, min), max);
 };
 
-const TutorialCoachmarks = ({ targets }: TutorialCoachmarksProps) => {
+const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) => {
   const steps: TutorialStep[] = useMemo(
     () => [
       {
@@ -93,19 +94,7 @@ const TutorialCoachmarks = ({ targets }: TutorialCoachmarksProps) => {
     };
   }, [activeStep.target, isOpen, targets]);
 
-  if (!isOpen) {
-    return (
-      <button
-        className="tutorial-reopen-btn"
-        onClick={() => {
-          setStepIdx(0);
-          setIsOpen(true);
-        }}
-      >
-        Show Tutorial Tips
-      </button>
-    );
-  }
+  if (!isOpen) return null;
 
   const hasTarget = Boolean(targetRect);
   const tooltipTop = hasTarget
@@ -146,7 +135,10 @@ const TutorialCoachmarks = ({ targets }: TutorialCoachmarksProps) => {
           <div className="tutorial-tooltip-actions">
             <button
               className="tutorial-ghost-btn"
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                setIsOpen(false);
+                onComplete?.();
+              }}
             >
               Hide
             </button>
@@ -162,6 +154,7 @@ const TutorialCoachmarks = ({ targets }: TutorialCoachmarksProps) => {
               onClick={() => {
                 if (stepIdx === steps.length - 1) {
                   setIsOpen(false);
+                  onComplete?.();
                   return;
                 }
                 setStepIdx((prev) => Math.min(steps.length - 1, prev + 1));
