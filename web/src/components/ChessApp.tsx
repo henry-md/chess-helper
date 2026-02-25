@@ -16,8 +16,10 @@ import LineTransitionCelebration from "@/components/LineTransitionCelebration";
 import TutorialCoachmarks from "@/components/TutorialCoachmarks";
 import { moveTextToMainlines } from "@/utils/chess/pgn-parser";
 import {
+  BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE,
   CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL,
   HIGHLIGHT_DESTINATION_SQUARE_IN_TUTORIAL_IN_NON_BRANCHING_POSITIONS,
+  LENGTH_OF_OPPONENT_MOVE,
   MOVES_HIGHLIGHTED_IN_TUTORIAL,
 } from "@/constants";
 
@@ -496,6 +498,8 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     isTutorial &&
     CONTINUE_HIGHLIGHTING_PGN_MOVES_THROUOUGHT_TUTORIAL &&
     !isAwaitingLineAdvance;
+  const totalOpponentMoveHoverDurationMs =
+    BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE + LENGTH_OF_OPPONENT_MOVE;
   const pendingOpponentMoveSan =
     shouldContinuePgnMoveHighlighting &&
     !isUsersTurnByIndex &&
@@ -504,10 +508,12 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
       ? nextExpectedMoveSan
       : null;
   const highlightedOpponentMoveSan =
-    shouldContinuePgnMoveHighlighting && recentAutoMoveSan ? recentAutoMoveSan : null;
+    shouldContinuePgnMoveHighlighting && totalOpponentMoveHoverDurationMs > 0 && recentAutoMoveSan
+      ? recentAutoMoveSan
+      : null;
   const highlightedPgnMoveSan =
-    activeSpotlightMoveContext?.san ??
     highlightedOpponentMoveSan ??
+    activeSpotlightMoveContext?.san ??
     (shouldContinuePgnMoveHighlighting && isUsersTurnByIndex
       ? nextExpectedMoveSan
       : pendingOpponentMoveSan);
@@ -772,6 +778,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
             currFen={currFen} 
             onPieceDrop={handlePieceDrop}
             isWhite={isPlayingWhite}
+            moveAnimationDuration={LENGTH_OF_OPPONENT_MOVE}
           />
           <LessonCompleteCelebration
             isCompleted={isCompleted}

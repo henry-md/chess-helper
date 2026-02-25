@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
-import { BUFFER_TIME_BEFORE_NEXT_LINE } from "@/constants";
+import {
+  BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE,
+  BUFFER_TIME_BEFORE_NEXT_LINE,
+  LENGTH_OF_OPPONENT_MOVE,
+} from "@/constants";
 import { findNumMovesToFirstBranch, moveTextToMainlines } from "@/utils/chess/pgn-parser";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const AUTO_MOVE_DELAY_MS = 220;
+const AUTO_MOVE_DELAY_MS = BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE;
 const HINT_DURATION_MS = 500;
-const AUTO_MOVE_PGN_HIGHLIGHT_SETTLE_MS = 320;
+const OPPONENT_MOVE_HOVER_DURATION_MS =
+  BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE + LENGTH_OF_OPPONENT_MOVE;
 
 type PositionMoveLineIndex = Map<string, Map<string, number[]>>;
 
@@ -195,6 +200,10 @@ const useLineQuizSession = ({
     (moveSan: string) => {
       clearAutoMoveHighlight();
       setRecentAutoMoveSan(moveSan);
+      autoMoveHighlightTimeoutIdRef.current = window.setTimeout(() => {
+        autoMoveHighlightTimeoutIdRef.current = null;
+        setRecentAutoMoveSan(null);
+      }, OPPONENT_MOVE_HOVER_DURATION_MS - BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE);
     },
     [clearAutoMoveHighlight]
   );
@@ -646,24 +655,6 @@ const useLineQuizSession = ({
       setIsAutoPlaying(false);
     }, HINT_DURATION_MS);
   }, [isUsersTurn, scheduleAction]);
-
-  useEffect(() => {
-    if (!recentAutoMoveSan || isAutoPlaying) {
-      return;
-    }
-
-    autoMoveHighlightTimeoutIdRef.current = window.setTimeout(() => {
-      autoMoveHighlightTimeoutIdRef.current = null;
-      setRecentAutoMoveSan(null);
-    }, AUTO_MOVE_PGN_HIGHLIGHT_SETTLE_MS);
-
-    return () => {
-      if (autoMoveHighlightTimeoutIdRef.current !== null) {
-        window.clearTimeout(autoMoveHighlightTimeoutIdRef.current);
-        autoMoveHighlightTimeoutIdRef.current = null;
-      }
-    };
-  }, [isAutoPlaying, recentAutoMoveSan]);
 
   useEffect(() => {
     if (isPaused) {

@@ -4,15 +4,17 @@ interface BoardProps {
   currFen: string;
   onPieceDrop: (sourceSquare: string, targetSquare: string) => boolean;
   isWhite: boolean;
+  moveAnimationDuration?: number;
 }
 
-const Board = ({ currFen, onPieceDrop, isWhite }: BoardProps) => {
+const Board = ({ currFen, onPieceDrop, isWhite, moveAnimationDuration }: BoardProps) => {
   return (
     <Chessboard
       id="BasicBoard"
       arePiecesDraggable={true}
       position={currFen}
       onPieceDrop={onPieceDrop}
+      animationDuration={moveAnimationDuration}
       boardOrientation={isWhite ? 'white' : 'black'}
       customDarkSquareStyle={{ backgroundColor: 'var(--board-dark)' }}
       customLightSquareStyle={{ backgroundColor: 'var(--board-light)' }}
