@@ -1,13 +1,15 @@
 :root {
-  --board-zinc-dark: #7a9174;
-  --board-zinc-light: #e3e9dd;
+  --board-zinc-dark: #7c9f58;
+  --board-zinc-light: #eef3dd;
   --board-dark: var(--board-zinc-dark);
-  --board-dark-overlay: rgba(122, 145, 116, 0.74);
+  --board-dark-overlay: rgba(124, 159, 88, 0.88);
   --board-light: var(--board-zinc-light);
-  --board-backdrop: radial-gradient(circle at 14% 14%, rgba(165, 191, 150, 0.3), transparent 44%),
-    radial-gradient(circle at 78% 28%, rgba(123, 161, 138, 0.2), transparent 46%),
-    radial-gradient(circle at 84% 84%, rgba(137, 146, 182, 0.14), transparent 54%),
-    linear-gradient(155deg, #2b322f 0%, #242d2b 52%, #20272a 100%);
+  --board-dark-square: linear-gradient(148deg, #87ab61 0%, #779d53 100%);
+  --board-light-square: linear-gradient(148deg, #f5f8e7 0%, #e6edd1 100%);
+  --board-backdrop: radial-gradient(circle at 14% 14%, rgba(241, 249, 223, 0.2), transparent 44%),
+    radial-gradient(circle at 78% 28%, rgba(167, 201, 127, 0.28), transparent 46%),
+    radial-gradient(circle at 84% 84%, rgba(176, 198, 149, 0.16), transparent 54%),
+    linear-gradient(155deg, #8db366 0%, #789f55 52%, #678848 100%);
 
   --surface-base: rgba(39, 39, 42, 0.94);
   --surface-soft: rgba(63, 63, 70, 0.78);

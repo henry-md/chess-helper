@@ -17,7 +17,10 @@ const BoardPreview = ({ pgn, gameTitle, isWhite }: BoardPreviewProps) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const darkSquareStyle = {
-    backgroundColor: 'var(--board-dark-overlay)',
+    background: 'var(--board-dark-square)',
+  };
+  const lightSquareStyle = {
+    background: 'var(--board-light-square)',
   };
   const boardStyle = {
     borderRadius: '4px',
@@ -62,7 +65,7 @@ const BoardPreview = ({ pgn, gameTitle, isWhite }: BoardPreviewProps) => {
             position={pgn.gameMetadata?.fenBeforeFirstBranch ?? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'}
             boardOrientation={pgn.gameSettings?.isPlayingWhite ?? true ? 'white' : 'black'}
             customDarkSquareStyle={darkSquareStyle}
-            customLightSquareStyle={{ backgroundColor: 'var(--board-light)' }}
+            customLightSquareStyle={lightSquareStyle}
             customBoardStyle={boardStyle}
           />
         </div>
