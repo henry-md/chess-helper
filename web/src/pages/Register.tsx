@@ -101,7 +101,7 @@ const Signup = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 pt-20">
-      <div className="w-full max-w-sm space-y-8 rounded-2xl border border-border/70 bg-card/60 px-8 py-8 shadow-[0_28px_52px_-34px_rgba(2,6,23,0.95)] backdrop-blur-sm">
+      <div className="glass-panel w-full max-w-sm space-y-8 rounded-2xl px-8 py-8">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-center text-foreground">
             Create a new account

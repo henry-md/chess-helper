@@ -40,7 +40,7 @@ const Dashboard = () => {
             className={`cursor-pointer ${!isAuthenticated ? "opacity-60" : ""}`}
           >
             <p className="pb-2 text-center font-medium text-muted-foreground">New Study</p>
-            <div className="group relative flex aspect-square w-full items-center justify-center rounded-xl border border-border/70 bg-card/55 shadow-[0_22px_42px_-30px_rgba(2,6,23,0.95)] backdrop-blur-sm transition-colors hover:border-[var(--highlight-ring)]">
+            <div className="glass-panel group relative flex aspect-square w-full items-center justify-center rounded-xl transition-colors hover:border-[var(--highlight-ring)]">
               <div className="absolute inset-0 rounded-xl bg-primary/0 opacity-0 transition-opacity group-hover:opacity-100 group-hover:bg-primary/[0.08]"></div>
               <div className="flex h-[84px] w-[84px] items-center justify-center rounded-2xl border border-border/70 bg-accent/55">
                 <div className="relative h-10 w-10" aria-hidden="true">

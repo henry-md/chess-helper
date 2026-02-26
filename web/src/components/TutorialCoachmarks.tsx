@@ -1,4 +1,5 @@
 import { RefObject, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 type TutorialTargetKey = "board" | "pgn" | "color" | "skip" | "hint" | "status";
 
@@ -68,6 +69,7 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
   const [isOpen, setIsOpen] = useState(true);
   const [isWhatIsAppPopupOpen, setIsWhatIsAppPopupOpen] = useState(false);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [targetRadius, setTargetRadius] = useState(12);
 
   const activeStep = steps[stepIdx];
 
@@ -79,11 +81,21 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
     const updateRect = () => {
       if (!activeStep.target) {
         setTargetRect(null);
+        setTargetRadius(12);
         return;
       }
 
       const node = targets[activeStep.target].current;
-      setTargetRect(node ? node.getBoundingClientRect() : null);
+      if (!node) {
+        setTargetRect(null);
+        setTargetRadius(12);
+        return;
+      }
+
+      const computedStyles = window.getComputedStyle(node);
+      const parsedRadius = parseFloat(computedStyles.borderTopLeftRadius) || 0;
+      setTargetRect(node.getBoundingClientRect());
+      setTargetRadius(parsedRadius);
     };
 
     updateRect();
@@ -111,16 +123,17 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
       : clamp(leftPreferredLeft, 12, window.innerWidth - CARD_WIDTH - 12)
     : clamp(window.innerWidth * 0.5 - CARD_WIDTH * 0.5, 12, window.innerWidth - CARD_WIDTH - 12);
 
-  return (
+  const overlay = (
     <>
       {hasTarget && (
         <div
           className="tutorial-highlight"
           style={{
-            top: Math.max((targetRect?.top ?? 0) - 8, 0),
-            left: Math.max((targetRect?.left ?? 0) - 8, 0),
-            width: (targetRect?.width ?? 0) + 16,
-            height: (targetRect?.height ?? 0) + 16,
+            top: Math.max(targetRect?.top ?? 0, 0),
+            left: Math.max(targetRect?.left ?? 0, 0),
+            width: targetRect?.width ?? 0,
+            height: targetRect?.height ?? 0,
+            borderRadius: targetRadius,
           }}
         />
       )}
@@ -202,6 +215,12 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
       )}
     </>
   );
+
+  if (typeof document === "undefined") {
+    return overlay;
+  }
+
+  return createPortal(overlay, document.body);
 };
 
 export default TutorialCoachmarks;

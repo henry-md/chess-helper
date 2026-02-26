@@ -54,7 +54,7 @@ const BoardPreview = ({ pgn, gameTitle, isWhite }: BoardPreviewProps) => {
         </div>
 
         {/* Board */}
-        <div className="group relative overflow-hidden rounded-lg border border-border/70 bg-card/55 p-1 shadow-[0_22px_42px_-30px_rgba(2,6,23,0.95)]">
+        <div className="glass-panel group relative overflow-hidden rounded-lg p-1">
           <div className="absolute inset-0 z-50 rounded-lg bg-primary/[0.06] opacity-0 transition-opacity group-hover:opacity-100"></div>
           <Chessboard
             id="BasicBoard"
