@@ -2,15 +2,13 @@ import { ToastContainer, toast } from "react-toastify";
 import Navbar from "../components/Navbar";
 import BoardPreview from "../components/BoardPreview";
 import { useStore } from "@nanostores/react";
-import { $user } from "@/store/user";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useQueryPgns from "@/hooks/useQueryPgns";
 import AddPgnDialog from "@/components/BoardAddDialog";
 import { StoredPgn } from "@/lib/types";
 import { $isAuthenticated } from "@/store/auth";
 
 const Dashboard = () => {
-  const user = useStore($user);
   const isAuthenticated = useStore($isAuthenticated);
   const { pgnArray }: { pgnArray: StoredPgn[] } = useQueryPgns();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -22,15 +20,6 @@ const Dashboard = () => {
     }
     setAddDialogOpen(true);
   }
-
-  useEffect(() => {
-    if (!isAuthenticated || !user.username) {
-      return;
-    }
-    toast(`Welcome ${user.username}!`, {
-      position: "bottom-right",
-    });
-  }, [user, isAuthenticated]);
 
   return (
     <>
@@ -54,7 +43,10 @@ const Dashboard = () => {
             <div className="group relative flex aspect-square w-full items-center justify-center rounded-xl border border-border/70 bg-card/55 shadow-[0_22px_42px_-30px_rgba(2,6,23,0.95)] backdrop-blur-sm transition-colors hover:border-[var(--highlight-ring)]">
               <div className="absolute inset-0 rounded-xl bg-primary/0 opacity-0 transition-opacity group-hover:opacity-100 group-hover:bg-primary/[0.08]"></div>
               <div className="flex h-[84px] w-[84px] items-center justify-center rounded-2xl border border-border/70 bg-accent/55">
-                <span className="text-6xl font-thin text-muted-foreground">+</span>
+                <div className="relative h-10 w-10" aria-hidden="true">
+                  <span className="absolute left-1/2 top-1/2 h-[2px] w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted-foreground/80"></span>
+                  <span className="absolute left-1/2 top-1/2 h-10 w-[2px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted-foreground/80"></span>
+                </div>
               </div>
             </div>
           </div>

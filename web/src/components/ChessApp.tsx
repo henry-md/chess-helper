@@ -65,6 +65,15 @@ type SpotlightLayout = {
   noteWidth: number;
 };
 
+type BoardFrame = {
+  outerWidth: number;
+  outerHeight: number;
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
+};
+
 type ViewportRect = {
   left: number;
   top: number;
@@ -803,7 +812,14 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   }, [isPlayingWhite, isSkipping, isTutorialMoveGuideActive, setIsPlayingWhite, setIsSkipping]);
 
   const [showCelebrationAnimation, setShowCelebrationAnimation] = useState(false);
-  const [boardFrame, setBoardFrame] = useState({ width: 0, height: 0 });
+  const [boardFrame, setBoardFrame] = useState<BoardFrame>({
+    outerWidth: 0,
+    outerHeight: 0,
+    width: 0,
+    height: 0,
+    offsetX: 0,
+    offsetY: 0,
+  });
 
   useEffect(() => {
     if (!isCompleted) {
@@ -829,14 +845,35 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
 
     const updateBoardFrame = () => {
       const rect = boardNode.getBoundingClientRect();
-      const width = Math.round(rect.width);
-      const height = Math.round(rect.height);
+      const computedStyle = window.getComputedStyle(boardNode);
+      const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+      const borderRight = parseFloat(computedStyle.borderRightWidth) || 0;
+      const borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
+      const borderBottom = parseFloat(computedStyle.borderBottomWidth) || 0;
+      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+      const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+      const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+
+      const outerWidth = Math.round(rect.width);
+      const outerHeight = Math.round(rect.height);
+      const offsetX = borderLeft + paddingLeft;
+      const offsetY = borderTop + paddingTop;
+      const width = Math.round(outerWidth - offsetX - borderRight - paddingRight);
+      const height = Math.round(outerHeight - offsetY - borderBottom - paddingBottom);
 
       setBoardFrame((previous) => {
-        if (previous.width === width && previous.height === height) {
+        if (
+          previous.outerWidth === outerWidth &&
+          previous.outerHeight === outerHeight &&
+          previous.width === width &&
+          previous.height === height &&
+          previous.offsetX === offsetX &&
+          previous.offsetY === offsetY
+        ) {
           return previous;
         }
-        return { width, height };
+        return { outerWidth, outerHeight, width, height, offsetX, offsetY };
       });
     };
 
@@ -870,13 +907,14 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
       }
     }
 
+    const spotlightOverscan = 1.5;
     const holes = Array.from(spotlightSquares.entries()).flatMap(([sourceSquare, metadata]) => {
       const squareTopLeft = getSquareTopLeft(sourceSquare, isPlayingWhite, squareSize);
       if (!squareTopLeft) {
         return [];
       }
 
-      const holeSize = squareSize;
+      const holeSize = squareSize + spotlightOverscan;
       const destinationDegradation = Math.max(
         0,
         Math.min(1, DESTINATION_SQUARE_SPOTLIGHT_BRIGHTNESS_DEGRADATION_FACTOR)
@@ -887,8 +925,8 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
 
       return [
         {
-          x: squareTopLeft.x,
-          y: squareTopLeft.y,
+          x: squareTopLeft.x - spotlightOverscan / 2,
+          y: squareTopLeft.y - spotlightOverscan / 2,
           size: holeSize,
           maskFill,
         },
@@ -934,13 +972,13 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
 
     const boardRect = boardElement.getBoundingClientRect();
     return tutorialSpotlightLayout.holes.map((hole) => ({
-      left: boardRect.left + hole.x,
-      top: boardRect.top + hole.y,
+      left: boardRect.left + boardFrame.offsetX + hole.x,
+      top: boardRect.top + boardFrame.offsetY + hole.y,
       width: hole.size,
       height: hole.size,
       maskFill: hole.maskFill,
     }));
-  }, [isTutorialDualFocusVisible, tutorialSpotlightLayout]);
+  }, [boardFrame.offsetX, boardFrame.offsetY, isTutorialDualFocusVisible, tutorialSpotlightLayout]);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -1038,7 +1076,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
             <div className="absolute inset-0 pointer-events-none tutorial-pawn-spotlight-layer" aria-hidden="true">
               <svg
                 className="tutorial-spotlight-svg"
-                viewBox={`0 0 ${tutorialSpotlightLayout.boardSize} ${tutorialSpotlightLayout.boardSize}`}
+                viewBox={`0 0 ${boardFrame.outerWidth} ${boardFrame.outerHeight}`}
                 preserveAspectRatio="none"
               >
                 <defs>
@@ -1046,15 +1084,15 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
                     <rect
                       x={0}
                       y={0}
-                      width={tutorialSpotlightLayout.boardSize}
-                      height={tutorialSpotlightLayout.boardSize}
+                      width={boardFrame.outerWidth}
+                      height={boardFrame.outerHeight}
                       fill="#fff"
                     />
                     {tutorialSpotlightLayout.holes.map((hole, index) => (
                       <rect
                         key={`spotlight-hole-${index}`}
-                        x={hole.x}
-                        y={hole.y}
+                        x={hole.x + boardFrame.offsetX}
+                        y={hole.y + boardFrame.offsetY}
                         width={hole.size}
                         height={hole.size}
                         rx={Math.max(6, Math.min(12, hole.size * 0.14))}
@@ -1067,8 +1105,8 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
                   className="tutorial-pawn-spotlight-mask"
                   x={0}
                   y={0}
-                  width={tutorialSpotlightLayout.boardSize}
-                  height={tutorialSpotlightLayout.boardSize}
+                  width={boardFrame.outerWidth}
+                  height={boardFrame.outerHeight}
                   mask={`url(#${spotlightMaskId})`}
                 />
               </svg>
@@ -1076,8 +1114,8 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
                 <div
                   className="tutorial-pawn-spotlight-note"
                   style={{
-                    left: tutorialSpotlightLayout.noteLeft,
-                    top: tutorialSpotlightLayout.noteTop,
+                    left: tutorialSpotlightLayout.noteLeft + boardFrame.offsetX,
+                    top: tutorialSpotlightLayout.noteTop + boardFrame.offsetY,
                     width: tutorialSpotlightLayout.noteWidth,
                   }}
                 >
