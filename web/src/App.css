@@ -1,8 +1,8 @@
 :root {
-  --board-zinc-dark: #667a62;
-  --board-zinc-light: #d7ddd0;
+  --board-zinc-dark: #7a9174;
+  --board-zinc-light: #e3e9dd;
   --board-dark: var(--board-zinc-dark);
-  --board-dark-overlay: rgba(102, 122, 98, 0.8);
+  --board-dark-overlay: rgba(122, 145, 116, 0.74);
   --board-light: var(--board-zinc-light);
   --board-backdrop: radial-gradient(circle at 14% 14%, rgba(165, 191, 150, 0.3), transparent 44%),
     radial-gradient(circle at 78% 28%, rgba(123, 161, 138, 0.2), transparent 46%),
@@ -21,14 +21,14 @@
   --text-strong: #f4f4f5;
   --text-muted: #a1a1aa;
 
-  --brand-strong: #6e8a64;
-  --brand-strong-hover: #5e7556;
+  --brand-strong: #83a176;
+  --brand-strong-hover: #739063;
   --brand-contrast: #f2f5ee;
-  --brand-highlight: #91aa86;
-  --highlight-ring: rgba(145, 170, 134, 0.64);
-  --highlight-glow: rgba(145, 170, 134, 0.2);
-  --token-highlight-bg: rgba(145, 170, 134, 0.19);
-  --token-highlight-ring: rgba(145, 170, 134, 0.38);
+  --brand-highlight: #a8c19c;
+  --highlight-ring: rgba(168, 193, 156, 0.78);
+  --highlight-glow: rgba(168, 193, 156, 0.28);
+  --token-highlight-bg: rgba(168, 193, 156, 0.24);
+  --token-highlight-ring: rgba(168, 193, 156, 0.48);
 }
 
 #root {
@@ -72,10 +72,10 @@
 .glass-panel {
   position: relative;
   border: 1px solid rgba(217, 226, 212, 0.22);
-  background: linear-gradient(145deg, rgba(66, 72, 84, 0.42), rgba(34, 39, 49, 0.34));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13), 0 20px 38px -24px rgba(2, 6, 23, 0.95);
-  backdrop-filter: blur(16px) saturate(130%);
-  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  background: linear-gradient(152deg, rgba(58, 64, 74, 0.38), rgba(46, 52, 62, 0.36));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 16px 30px -24px rgba(2, 6, 23, 0.82);
+  backdrop-filter: blur(14px) saturate(115%);
+  -webkit-backdrop-filter: blur(14px) saturate(115%);
 }
 
 .glass-panel::before {
@@ -84,16 +84,16 @@
   inset: 1px;
   border-radius: inherit;
   pointer-events: none;
-  background: radial-gradient(circle at 18% 4%, rgba(244, 248, 238, 0.12), transparent 40%);
+  background: radial-gradient(circle at 18% 4%, rgba(244, 248, 238, 0.07), transparent 44%);
 }
 
 .glass-panel-soft {
   position: relative;
   border: 1px solid rgba(217, 226, 212, 0.2);
-  background: linear-gradient(150deg, rgba(64, 70, 82, 0.46), rgba(48, 54, 66, 0.44));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 20px 38px -24px rgba(2, 6, 23, 0.88);
-  backdrop-filter: blur(15px) saturate(120%);
-  -webkit-backdrop-filter: blur(15px) saturate(120%);
+  background: linear-gradient(154deg, rgba(58, 64, 74, 0.4), rgba(50, 56, 66, 0.39));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 30px -24px rgba(2, 6, 23, 0.8);
+  backdrop-filter: blur(14px) saturate(112%);
+  -webkit-backdrop-filter: blur(14px) saturate(112%);
 }
 
 .glass-panel-soft::before {
@@ -102,7 +102,7 @@
   inset: 1px;
   border-radius: inherit;
   pointer-events: none;
-  background: radial-gradient(circle at 18% 6%, rgba(244, 248, 238, 0.07), transparent 42%);
+  background: radial-gradient(circle at 18% 6%, rgba(244, 248, 238, 0.05), transparent 46%);
 }
 
 .lesson-celebration-layer {
