@@ -7,12 +7,12 @@ type LessonCompleteCelebrationProps = {
 };
 
 const CONFETTI_COLORS = [
-  "#F59E0B",
-  "#10B981",
-  "#3B82F6",
-  "#EF4444",
-  "#8B5CF6",
-  "#F97316",
+  "#a3e635",
+  "#34d399",
+  "#22d3ee",
+  "#60a5fa",
+  "#d4d4d8",
+  "#86efac",
 ];
 
 const CONFETTI_COUNT = 42;

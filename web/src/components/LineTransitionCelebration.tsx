@@ -6,7 +6,7 @@ type LineTransitionCelebrationProps = {
 };
 
 const BURST_PARTICLE_COUNT = 24;
-const BURST_COLORS = ["#F59E0B", "#10B981", "#3B82F6", "#EF4444", "#F97316", "#EAB308"];
+const BURST_COLORS = ["#a3e635", "#34d399", "#22d3ee", "#60a5fa", "#d4d4d8", "#86efac"];
 
 const LineTransitionCelebration = ({ isVisible }: LineTransitionCelebrationProps) => {
   const [showBurst, setShowBurst] = useState(false);

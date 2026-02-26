@@ -8,6 +8,15 @@ interface BoardProps {
 }
 
 const Board = ({ currFen, onPieceDrop, isWhite, moveAnimationDuration }: BoardProps) => {
+  const darkSquareStyle = {
+    backgroundColor: 'var(--board-dark-overlay)',
+  };
+  const boardStyle = {
+    borderRadius: '4px',
+    background: 'var(--board-backdrop)',
+    boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.04)',
+  };
+
   return (
     <Chessboard
       id="BasicBoard"
@@ -16,12 +25,9 @@ const Board = ({ currFen, onPieceDrop, isWhite, moveAnimationDuration }: BoardPr
       onPieceDrop={onPieceDrop}
       animationDuration={moveAnimationDuration}
       boardOrientation={isWhite ? 'white' : 'black'}
-      customDarkSquareStyle={{ backgroundColor: 'var(--board-dark)' }}
+      customDarkSquareStyle={darkSquareStyle}
       customLightSquareStyle={{ backgroundColor: 'var(--board-light)' }}
-      customBoardStyle={{
-        borderRadius: '4px',
-        // boxShadow: '0 2px 10px rgba(0, 0, 0, 0.5)'
-      }}
+      customBoardStyle={boardStyle}
     />
   );
 };

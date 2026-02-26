@@ -100,8 +100,8 @@ const Signup = () => {
   }, []);
 
   return (
-    <div className="flex items-center justify-center h-[100vh]">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="flex min-h-screen items-center justify-center px-4 pt-20">
+      <div className="w-full max-w-sm space-y-8 rounded-2xl border border-border/70 bg-card/60 px-8 py-8 shadow-[0_28px_52px_-34px_rgba(2,6,23,0.95)] backdrop-blur-sm">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-center text-foreground">
             Create a new account
@@ -169,7 +169,7 @@ const Signup = () => {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="px-2 bg-white text-muted-foreground">Or</span>
+                <span className="bg-card px-2 text-muted-foreground">Or</span>
               </div>
             </div>
             <div className="flex justify-center">

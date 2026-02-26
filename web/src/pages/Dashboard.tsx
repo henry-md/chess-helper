@@ -35,12 +35,12 @@ const Dashboard = () => {
   return (
     <>
       <Navbar />
-      <div className="p-[4rem] pt-24 px-32">
-        <h1 className="mx-auto mb-8 text-2xl font-bold text-center">My Studies</h1>
+      <div className="mx-auto max-w-[1280px] px-6 pb-12 pt-28">
+        <h1 className="mx-auto mb-8 text-center text-3xl font-bold tracking-tight text-foreground">My Studies</h1>
         {pgnArray.length === 0 && (
-          <p className="mb-8 text-center text-gray-600">You have no games yet.</p>
+          <p className="mb-8 text-center text-sm text-muted-foreground">You have no games yet.</p>
         )}
-        <div className="grid grid-cols-1 gap-16 mx-auto sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto grid grid-cols-1 gap-16 sm:grid-cols-2 lg:grid-cols-3">
           {
             Array.isArray(pgnArray) && pgnArray.map((pgn: StoredPgn, index) => (
               <BoardPreview key={index} pgn={pgn} gameTitle={pgn.title} isWhite={index % 2 === 0} />
@@ -50,11 +50,11 @@ const Dashboard = () => {
             onClick={handleNewStudy}
             className={`cursor-pointer ${!isAuthenticated ? "opacity-60" : ""}`}
           >
-            <p className="pb-2 text-center">New Study</p>
-            <div className="relative flex items-center justify-center w-full bg-gray-200 rounded-md aspect-square group">
-              <div className="absolute inset-0 transition-opacity bg-black rounded-md opacity-0 group-hover:opacity-[0.08]"></div>
-              <div className="w-[80px] h-[80px] bg-gray-300 rounded-[1rem] flex items-center justify-center">
-                <span className="text-6xl font-thin text-gray-400">＋</span>
+            <p className="pb-2 text-center font-medium text-muted-foreground">New Study</p>
+            <div className="group relative flex aspect-square w-full items-center justify-center rounded-xl border border-border/70 bg-card/55 shadow-[0_22px_42px_-30px_rgba(2,6,23,0.95)] backdrop-blur-sm transition-colors hover:border-[var(--highlight-ring)]">
+              <div className="absolute inset-0 rounded-xl bg-primary/0 opacity-0 transition-opacity group-hover:opacity-100 group-hover:bg-primary/[0.08]"></div>
+              <div className="flex h-[84px] w-[84px] items-center justify-center rounded-2xl border border-border/70 bg-accent/55">
+                <span className="text-6xl font-thin text-muted-foreground">+</span>
               </div>
             </div>
           </div>

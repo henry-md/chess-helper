@@ -1008,12 +1008,12 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   return (
     <>
       <div className={cn(
-        "flex gap-4 justify-center items-center w-full h-[100vh]"
+        "flex w-full min-h-screen items-center justify-center gap-6 px-6 pb-8 pt-24"
       )}>
         {/* Board */}
         <div
           ref={boardRef}
-          className="relative"
+          className="relative rounded-lg border border-border/70 bg-card/40 p-2 shadow-[0_24px_48px_-24px_rgba(2,6,23,0.9)]"
           style={{ width: "min(80vh, 70vw)", height: "min(80vh, 70vw)" }}
         >
           <Board
@@ -1171,16 +1171,16 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
 
         {/* Aside */}
         <div className={cn(
-          "flex flex-col items-center justify-center gap-2",
+          "flex flex-col items-center justify-center gap-2 rounded-xl border border-border/70 bg-card/45 p-3 backdrop-blur-sm",
           debug && "border border-red-500"
         )} style={{ width: 'min(30vw, 400px)', height: 'min(80vh, 70vw)' }}>
           
           {/* Title Notes Pgn */}
           <div className={cn(
-            "flex-grow flex flex-col h-full items-center w-full gap-3 p-3 pt-0",
+            "flex h-full w-full flex-grow flex-col items-center gap-3 p-2",
             debug && "border border-blue-500"
           )}>
-            <div className="flex flex-row gap-4 items-center w-full justify-left">
+            <div className="flex w-full flex-row items-center justify-start gap-4">
               <h3 className="text-2xl">{pgn?.title}</h3>
               {!isTutorial && (
                 <button onClick={() => setEditDialogOpen(true)}>
@@ -1191,13 +1191,13 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
             <textarea
               value={pgn?.notes || ''}
               readOnly
-              className="p-2 w-full rounded border border-gray-300 h-fit"
+              className="h-fit w-full rounded-md border border-border bg-card/60 p-2 text-sm text-foreground shadow-sm"
               placeholder="Notes"
             />
             {isPgnMoveHighlightingEnabled ? (
               <div
                 ref={tutorialPgnRef}
-                className="flex-grow p-2 w-full h-full rounded border border-gray-300 tutorial-pgn-display"
+                className="tutorial-pgn-display h-full w-full flex-grow rounded-md border border-border bg-card/60 p-2 text-foreground shadow-sm"
                 role="textbox"
                 aria-readonly="true"
                 aria-label="PGN"
@@ -1215,7 +1215,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               <textarea
                 ref={editorPgnRef}
                 value={pgn?.moveText || ''}
-                className="flex-grow p-2 w-full h-full rounded border border-gray-300"
+                className="h-full w-full flex-grow rounded-md border border-border bg-card/60 p-2 text-foreground shadow-sm"
                 placeholder="PGN"
                 readOnly={false}
               />
@@ -1223,38 +1223,38 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           </div>
           
           {/* Game Settings */}
-          <div ref={colorRef} className="flex flex-row gap-2 justify-center items-center">
+          <div ref={colorRef} className="flex flex-row items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
             Play as:
             <button 
-              className={`w-[25px] h-[25px] bg-[var(--board-light)] rounded-md ${isPlayingWhite ? 'border-2 border-[#827662]' : ''} box-border`} 
+              className={`h-[25px] w-[25px] rounded-md bg-[var(--board-light)] ${isPlayingWhite ? 'border-2 border-[var(--brand-highlight)] shadow-[0_0_0_1px_var(--highlight-ring)]' : 'border border-border/70'} box-border`} 
               disabled={isTutorialInteractionLocked}
               onClick={() => setIsPlayingWhite(true)}
             ></button>
             <button 
-              className={`w-[25px] h-[25px] bg-[var(--board-dark)] rounded-md ${!isPlayingWhite ? 'border-2 border-[#827662]' : ''} box-border`} 
+              className={`h-[25px] w-[25px] rounded-md bg-[var(--board-dark)] ${!isPlayingWhite ? 'border-2 border-[var(--brand-highlight)] shadow-[0_0_0_1px_var(--highlight-ring)]' : 'border border-border/70'} box-border`} 
               disabled={isTutorialInteractionLocked}
               onClick={() => setIsPlayingWhite(false)}
             ></button>
           </div>
-          <div ref={skipRef} className="flex flex-row gap-2 justify-center items-center">
+          <div ref={skipRef} className="flex flex-row items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
             Skip to first branch:
             <button 
               disabled={isTutorialInteractionLocked}
               onClick={() => setIsSkipping(!isSkipping)}
             >
               <FontAwesomeIcon 
-                className="text-[#411A06]" // dark: 411A06
+                className="text-[var(--brand-highlight)]"
                 icon={isSkipping ? faToggleOn : faToggleOff} 
                 size="lg"
               />
             </button>
           </div>
           {!isTutorial && (
-            <div className="flex flex-row gap-2 justify-center items-center">
+            <div className="flex flex-row items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
               Highlight moves:
               <button onClick={() => setIsMoveHighlightingEnabled((enabled) => !enabled)}>
                 <FontAwesomeIcon
-                  className="text-[#411A06]"
+                  className="text-[var(--brand-highlight)]"
                   icon={isMoveHighlightingEnabled ? faToggleOn : faToggleOff}
                   size="lg"
                 />
@@ -1265,7 +1265,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           {/* Hint Button */}
           <button 
             ref={hintRef}
-            className="p-2 w-full rounded border border-gray-300 hover:bg-gray-100"
+            className="w-full rounded-md border border-border bg-card/60 p-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/70"
             onClick={showHint}
             disabled={isAutoPlaying || isCompleted || isTutorialInteractionLocked}
           >
@@ -1277,8 +1277,8 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
             className={cn(
               "px-3 py-2 w-full text-sm font-semibold text-center rounded border",
               isCompleted
-                ? "border-emerald-500 bg-emerald-100/80"
-                : "bg-[var(--background-beige-dark)] border-[var(--beige-outline)]"
+                ? "border-emerald-400/70 bg-emerald-500/15 text-emerald-100"
+                : "border-border bg-card/60 text-foreground"
             )}
           >
             {isCompleted
@@ -1289,7 +1289,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           </div>
 
           {moveRejectionMessage && (
-            <div className="px-3 py-2 w-full text-sm font-medium text-center text-amber-900 rounded border border-amber-500 bg-amber-100/80">
+            <div className="w-full rounded border border-amber-300/60 bg-amber-500/20 px-3 py-2 text-center text-sm font-medium text-amber-100">
               {moveRejectionMessage}
             </div>
           )}

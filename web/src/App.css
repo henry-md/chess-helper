@@ -1,45 +1,71 @@
 :root {
-  --board-brown: #b58863;
-  --board-light-brown: #f0d9b5;
-  --board-green: #769656;
-  --board-light-green: #eeeed2;
-  --board-dark: var(--board-brown);
-  --board-light: var(--board-light-brown);
+  --board-zinc-dark: #5f665b;
+  --board-zinc-light: #d8d5cd;
+  --board-dark: var(--board-zinc-dark);
+  --board-dark-overlay: rgba(95, 102, 91, 0.82);
+  --board-light: var(--board-zinc-light);
+  --board-backdrop: radial-gradient(circle at 18% 20%, rgba(90, 146, 123, 0.26), transparent 45%),
+    radial-gradient(circle at 84% 80%, rgba(106, 101, 149, 0.2), transparent 50%),
+    linear-gradient(155deg, #2a2f36 0%, #222834 52%, #1f232c 100%);
 
-  --background-beige: rgb(255, 250, 237);
-  --background-beige-dark: rgba(255, 252, 250, 0.518);
-  --beige-outline: rgb(184, 167, 139);
+  --surface-base: rgba(39, 39, 42, 0.94);
+  --surface-soft: rgba(63, 63, 70, 0.78);
+  --surface-contrast: rgba(82, 82, 91, 0.82);
+  --surface-overlay: rgba(9, 9, 11, 0.55);
+  --surface-overlay-strong: rgba(9, 9, 11, 0.7);
+  --surface-overlay-focus: rgba(3, 7, 18, 0.78);
+  --surface-border: rgba(161, 161, 170, 0.26);
+  --surface-shadow: rgba(2, 6, 23, 0.58);
 
-  --brown-text: rgb(76, 25, 0);
+  --text-strong: #f4f4f5;
+  --text-muted: #a1a1aa;
+
+  --brand-strong: #16a34a;
+  --brand-strong-hover: #15803d;
+  --brand-contrast: #ecfdf5;
+  --brand-highlight: #4ade80;
+  --highlight-ring: rgba(74, 222, 128, 0.68);
+  --highlight-glow: rgba(52, 211, 153, 0.24);
+  --token-highlight-bg: rgba(74, 222, 128, 0.2);
+  --token-highlight-ring: rgba(74, 222, 128, 0.42);
 }
 
 #root {
   margin: 0;
   padding: 0;
+  min-height: 100vh;
+  color: var(--text-strong);
 }
 
-body {
-  background-color: var(--background-beige);
+:where(input, textarea, select) {
+  background-color: var(--surface-soft);
+  border: 1px solid var(--surface-border);
+  color: var(--text-strong);
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
-textarea, input {
-  background-color: var(--background-beige-dark);
-  border: 1px solid var(--beige-outline) !important;
-  color: var(--brown-text);
+:where(input, textarea, select):focus {
+  outline: none;
+  border-color: var(--highlight-ring);
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.14);
 }
 
-button.w-full {
-  background-color: var(--board-brown) !important;
-  border: none !important;
-}
-
-*:not(button, button *) {
-  color: var(--brown-text);
+:where(input, textarea, select)::placeholder {
+  color: var(--text-muted);
 }
 
 .icon-btn {
-  color: white !important;
-  background-color: var(--board-brown) !important;
+  color: var(--text-strong);
+  background-color: var(--surface-soft);
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 10px 22px -16px var(--surface-shadow);
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.icon-btn:hover {
+  background-color: var(--surface-contrast);
+  border-color: rgba(212, 212, 216, 0.4);
+  transform: translateY(-1px);
 }
 
 .lesson-celebration-layer {
@@ -66,9 +92,10 @@ button.w-full {
   min-width: min(80%, 360px);
   text-align: center;
   border-radius: 0.75rem;
-  border: 2px solid #f59e0b;
-  background: rgba(255, 250, 237, 0.96);
-  box-shadow: 0 12px 32px rgba(76, 25, 0, 0.24);
+  border: 1px solid var(--highlight-ring);
+  background: var(--surface-base);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 18px 36px -16px var(--surface-shadow);
   padding: 0.9rem 1rem 0.8rem;
   animation: lesson-complete-pop 360ms ease-out;
 }
@@ -78,25 +105,31 @@ button.w-full {
   font-size: 1.125rem;
   font-weight: 800;
   letter-spacing: 0.02em;
-  color: #7c2d12;
+  color: var(--text-strong);
 }
 
 .lesson-complete-subtitle {
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
   font-weight: 500;
-  color: #92400e;
+  color: var(--text-muted);
 }
 
 .lesson-complete-restart-btn {
   margin-top: 0.7rem;
   border-radius: 0.55rem;
-  border: 1px solid #d97706;
-  background: #b45309;
-  color: #fff8f1;
+  border: 1px solid rgba(74, 222, 128, 0.42);
+  background: var(--brand-strong);
+  color: var(--brand-contrast);
   font-size: 0.8rem;
   font-weight: 700;
   padding: 0.35rem 0.8rem;
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.lesson-complete-restart-btn:hover {
+  background: var(--brand-strong-hover);
+  transform: translateY(-1px);
 }
 
 .line-transition-layer {
@@ -143,12 +176,11 @@ button.w-full {
   }
 }
 
-/* Tutorial coachmarks */
 .tutorial-highlight {
   position: fixed;
-  border: 2px solid rgba(180, 83, 9, 0.82);
+  border: 2px solid var(--highlight-ring);
   border-radius: 12px;
-  box-shadow: 0 0 0 9999px rgba(36, 18, 6, 0.18), 0 0 0 6px rgba(251, 191, 36, 0.22);
+  box-shadow: 0 0 0 9999px rgba(2, 6, 23, 0.36), 0 0 0 6px var(--highlight-glow);
   pointer-events: none;
   z-index: 40;
   animation: tutorial-highlight-pulse 900ms ease-in-out infinite;
@@ -158,9 +190,10 @@ button.w-full {
   position: fixed;
   z-index: 41;
   border-radius: 12px;
-  border: 1px solid rgba(146, 64, 14, 0.45);
-  background: rgba(255, 252, 245, 0.98);
-  box-shadow: 0 12px 30px rgba(49, 24, 8, 0.22);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-base);
+  box-shadow: 0 16px 30px -16px var(--surface-shadow);
+  backdrop-filter: blur(8px);
   padding: 12px 12px 10px;
 }
 
@@ -168,14 +201,14 @@ button.w-full {
   margin: 0;
   font-size: 0.97rem;
   font-weight: 800;
-  color: #7c2d12;
+  color: var(--text-strong);
 }
 
 .tutorial-tooltip-body {
   margin: 7px 0 10px;
   font-size: 0.82rem;
   line-height: 1.35rem;
-  color: #78350f;
+  color: var(--text-muted);
 }
 
 .tutorial-what-app-btn {
@@ -185,9 +218,9 @@ button.w-full {
   gap: 6px;
   margin: 0 auto 10px;
   border-radius: 8px;
-  border: 1px solid rgba(146, 64, 14, 0.38);
-  background: rgba(255, 248, 233, 0.95);
-  color: #7c2d12;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-soft);
+  color: var(--text-strong);
   font-size: 0.75rem;
   font-weight: 700;
   padding: 5px 9px;
@@ -200,8 +233,8 @@ button.w-full {
   width: 17px;
   height: 17px;
   border-radius: 999px;
-  border: 1px solid rgba(146, 64, 14, 0.45);
-  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-contrast);
   font-size: 0.7rem;
   line-height: 1;
 }
@@ -216,7 +249,7 @@ button.w-full {
 .tutorial-tooltip-step {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #92400e;
+  color: var(--text-muted);
 }
 
 .tutorial-tooltip-actions {
@@ -236,8 +269,8 @@ button.w-full {
 
 .tutorial-ghost-btn {
   background: transparent;
-  border-color: rgba(146, 64, 14, 0.35);
-  color: #7c2d12;
+  border-color: var(--surface-border);
+  color: var(--text-strong);
 }
 
 .tutorial-ghost-btn:disabled {
@@ -245,8 +278,8 @@ button.w-full {
 }
 
 .tutorial-solid-btn {
-  background: #b45309;
-  color: #fff8f1;
+  background: var(--brand-strong);
+  color: var(--brand-contrast);
 }
 
 .tutorial-reopen-btn {
@@ -255,9 +288,9 @@ button.w-full {
   bottom: 14px;
   z-index: 39;
   border-radius: 999px;
-  border: 1px solid rgba(146, 64, 14, 0.5);
-  background: rgba(255, 250, 237, 0.96);
-  color: #7c2d12;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-base);
+  color: var(--text-strong);
   font-size: 0.73rem;
   font-weight: 800;
   padding: 7px 11px;
@@ -270,16 +303,16 @@ button.w-full {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(38, 17, 5, 0.45);
+  background: var(--surface-overlay-strong);
   padding: 16px;
 }
 
 .tutorial-help-popup-card {
   width: min(430px, 100%);
   border-radius: 12px;
-  border: 1px solid rgba(146, 64, 14, 0.48);
-  background: rgba(255, 252, 245, 0.99);
-  box-shadow: 0 12px 32px rgba(49, 24, 8, 0.3);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-base);
+  box-shadow: 0 14px 32px -16px var(--surface-shadow);
   padding: 14px 14px 12px;
 }
 
@@ -287,21 +320,21 @@ button.w-full {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 800;
-  color: #7c2d12;
+  color: var(--text-strong);
 }
 
 .tutorial-help-popup-body {
   margin: 8px 0 12px;
   font-size: 0.81rem;
   line-height: 1.35rem;
-  color: #78350f;
+  color: var(--text-muted);
 }
 
 .tutorial-help-popup-btn {
-  border: 1px solid rgba(146, 64, 14, 0.42);
+  border: 1px solid var(--surface-border);
   border-radius: 8px;
-  background: #b45309;
-  color: #fff8f1;
+  background: var(--brand-strong);
+  color: var(--brand-contrast);
   font-size: 0.75rem;
   font-weight: 700;
   padding: 5px 11px;
@@ -324,7 +357,7 @@ button.w-full {
 }
 
 .tutorial-dual-focus-mask {
-  fill: rgba(18, 10, 4, 0.74);
+  fill: var(--surface-overlay-focus);
 }
 
 .tutorial-spotlight-svg {
@@ -335,25 +368,25 @@ button.w-full {
 }
 
 .tutorial-pawn-spotlight-mask {
-  fill: rgba(40, 18, 6, 0.56);
+  fill: var(--surface-overlay-strong);
 }
 
 .tutorial-pawn-spotlight-note {
   position: absolute;
   z-index: 1;
   border-radius: 9px;
-  border: 1px solid rgba(146, 64, 14, 0.5);
-  background: rgba(255, 252, 245, 0.98);
-  box-shadow: 0 8px 20px rgba(49, 24, 8, 0.24);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-base);
+  box-shadow: 0 12px 24px -18px var(--surface-shadow);
   font-size: 0.8rem;
   font-weight: 700;
-  color: #7c2d12;
+  color: var(--text-strong);
   line-height: 1.2rem;
   padding: 7px 10px;
 }
 
 .tutorial-pawn-spotlight-note strong {
-  color: #b45309;
+  color: var(--brand-highlight);
 }
 
 .tutorial-pgn-display {
@@ -368,9 +401,9 @@ button.w-full {
 
 .tutorial-pgn-token-highlight {
   border-radius: 4px;
-  background: rgba(250, 204, 21, 0.36);
-  box-shadow: 0 0 0 1px rgba(180, 83, 9, 0.28);
-  color: #7c2d12;
+  background: var(--token-highlight-bg);
+  box-shadow: 0 0 0 1px var(--token-highlight-ring);
+  color: var(--text-strong);
   font-weight: 700;
   padding: 0 1px;
 }
@@ -383,9 +416,9 @@ button.w-full {
   z-index: 43;
   min-width: min(80%, 340px);
   border-radius: 12px;
-  border: 1px solid rgba(146, 64, 14, 0.45);
-  background: rgba(255, 252, 245, 0.98);
-  box-shadow: 0 12px 30px rgba(49, 24, 8, 0.24);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-base);
+  box-shadow: 0 16px 34px -16px var(--surface-shadow);
   padding: 14px 14px 12px;
   text-align: center;
 }
@@ -394,21 +427,21 @@ button.w-full {
   margin: 0;
   font-size: 0.98rem;
   font-weight: 800;
-  color: #7c2d12;
+  color: var(--text-strong);
 }
 
 .tutorial-line-advance-body {
   margin: 7px 0 12px;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #92400e;
+  color: var(--text-muted);
 }
 
 .tutorial-line-advance-btn {
   border-radius: 9px;
-  border: 1px solid rgba(146, 64, 14, 0.32);
-  background: #b45309;
-  color: #fff8f1;
+  border: 1px solid var(--surface-border);
+  background: var(--brand-strong);
+  color: var(--brand-contrast);
   font-size: 0.78rem;
   font-weight: 800;
   padding: 6px 11px;
@@ -421,15 +454,15 @@ button.w-full {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(35, 18, 8, 0.26);
+  background: var(--surface-overlay);
 }
 
 .tutorial-practice-popup-card {
   min-width: min(82%, 360px);
   border-radius: 12px;
-  border: 1px solid rgba(146, 64, 14, 0.45);
-  background: rgba(255, 252, 245, 0.99);
-  box-shadow: 0 14px 34px rgba(49, 24, 8, 0.28);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-base);
+  box-shadow: 0 16px 34px -16px var(--surface-shadow);
   text-align: center;
   padding: 14px 14px 12px;
 }
@@ -438,7 +471,7 @@ button.w-full {
   margin: 0;
   font-size: 0.97rem;
   font-weight: 800;
-  color: #7c2d12;
+  color: var(--text-strong);
 }
 
 .tutorial-practice-popup-body {
@@ -446,14 +479,14 @@ button.w-full {
   font-size: 0.89rem;
   font-weight: 500;
   line-height: 1.32rem;
-  color: #7c2d12;
+  color: var(--text-strong);
 }
 
 .tutorial-practice-popup-btn {
   border-radius: 9px;
-  border: 1px solid rgba(146, 64, 14, 0.35);
-  background: #b45309;
-  color: #fff8f1;
+  border: 1px solid var(--surface-border);
+  background: var(--brand-strong);
+  color: var(--brand-contrast);
   font-size: 0.78rem;
   font-weight: 800;
   padding: 6px 12px;
@@ -462,10 +495,10 @@ button.w-full {
 @keyframes tutorial-highlight-pulse {
   0%,
   100% {
-    border-color: rgba(180, 83, 9, 0.75);
+    border-color: var(--highlight-ring);
   }
   50% {
-    border-color: rgba(217, 119, 6, 1);
+    border-color: var(--brand-highlight);
   }
 }
 
