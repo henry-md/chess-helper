@@ -1011,7 +1011,11 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
         "flex gap-4 justify-center items-center w-full h-[100vh]"
       )}>
         {/* Board */}
-        <div ref={boardRef} className="relative" style={{ width: 'min(80vh, 70vw)' }}>
+        <div
+          ref={boardRef}
+          className="relative"
+          style={{ width: "min(80vh, 70vw)", height: "min(80vh, 70vw)" }}
+        >
           <Board
             currFen={currFen} 
             onPieceDrop={handlePieceDrop}

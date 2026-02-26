@@ -26,14 +26,14 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
   const steps: TutorialStep[] = useMemo(
     () => [
       {
+        title: "What is a PGN?",
+        body: "PGN is a text format for moves. Example: Nf3 means knight to f3, O-O means castle. Parentheses mark alternate branches.",
+        target: "pgn",
+      },
+      {
         title: "How This Trainer Works",
         body: "You play your side from a PGN line, and the app plays the opponent. The goal is to cover every variation, not just one path.",
         target: "board",
-      },
-      {
-        title: "PGN In Plain Terms",
-        body: "PGN is a text format for moves. Example: Nf3 means knight to f3, O-O means castle. Parentheses mark alternate branches.",
-        target: "pgn",
       },
       {
         title: "Choose Your Perspective",
@@ -41,7 +41,7 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
         target: "color",
       },
       {
-        title: "Skip The Trunk",
+        title: "Skip To The First Branch",
         body: "Skip to first branch jumps through common opening moves so practice focuses on decision points, where memory usually breaks.",
         target: "skip",
       },
@@ -51,8 +51,8 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
         target: "hint",
       },
       {
-        title: "Branch Coverage Rule",
-        body: "At a branching position, any PGN move is accepted. Repeating the same move at that branch is blocked until other options are covered.",
+        title: "Message Box",
+        body: "Text box to surface messages, and explain why you can or can't do something.",
         target: "status",
       },
       // {
