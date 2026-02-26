@@ -7,6 +7,7 @@ import {
 import { API_URL } from "@/env";
 import { toast } from "react-toastify";
 import { getAuthHeader } from "@/utils/auth";
+import { handleUnauthorizedResponse } from "@/utils/auth";
 import logger from "@/utils/logger";
 import { StoredPgn } from "@/lib/types";
 import { $isAuthenticated } from "@/store/auth";
@@ -32,7 +33,7 @@ function useQueryPgns() {
         headers: getAuthHeader(),
       });
       if (!response.ok) {
-        if (response.status === 401) {
+        if (handleUnauthorizedResponse(response.status)) {
           setPgnDict([]);
           return;
         }

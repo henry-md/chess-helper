@@ -1,7 +1,7 @@
 import { API_URL } from "@/env";
 import { toast } from "react-toastify";
 import { addPgnDict, updatePgnDict, deletePgnFromDict, $pgn, $pgnDict, setPgn } from "@/store/pgn";
-import { getAuthHeader } from "@/utils/auth";
+import { getAuthHeader, handleUnauthorizedResponse } from "@/utils/auth";
 import logger from "@/utils/logger";
 import { formatError } from "@/utils/error";
 import { StoredPgn } from "@/lib/types";
@@ -45,6 +45,10 @@ function useMutationPgns() {
         },
         body: JSON.stringify({ title, moveText, notes, isPublic }),
       });
+
+      if (handleUnauthorizedResponse(response.status)) {
+        return undefined;
+      }
       
       logger.debug(`[useMutationPgns] Creating PGN "${title}" with move text "${moveText}" and notes "${notes}" and isPublic "${isPublic}"; response: ${JSON.stringify(response)}`);
       const data = await response.json();
@@ -78,6 +82,9 @@ function useMutationPgns() {
         },
         body: JSON.stringify(updates),
       });
+      if (handleUnauthorizedResponse(response.status)) {
+        return false;
+      }
       const res = await response.json();
       if (!response.ok) {
         toast.error(formatError(res));
@@ -111,6 +118,10 @@ function useMutationPgns() {
         method: "DELETE", 
         headers: getAuthHeader(),
       });
+
+      if (handleUnauthorizedResponse(response.status)) {
+        return;
+      }
       
       // Rollback state on server error
       if (!response.ok) {

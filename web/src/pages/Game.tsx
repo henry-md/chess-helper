@@ -5,7 +5,7 @@ import ChessApp from "../components/ChessApp";
 import { useStore } from "@nanostores/react";
 import { $pgnDict, setPgn } from "../store/pgn";
 import { API_URL } from "@/env";
-import { getAuthHeader } from "@/utils/auth";
+import { getAuthHeader, handleUnauthorizedResponse } from "@/utils/auth";
 import { setCurrentPgnId } from "../store/gameCore";
 import { setCurrentLine, setCurrentLineIdx } from "../store/gameCore";
 import { StoredPgn } from "@/lib/types";
@@ -35,6 +35,9 @@ const Game = () => {
           signal: abortController.signal,
         });
         if (!response.ok) {
+          if (handleUnauthorizedResponse(response.status)) {
+            return;
+          }
           return;
         }
 

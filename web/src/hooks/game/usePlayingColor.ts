@@ -1,6 +1,6 @@
 import { StoredPgn } from "@/lib/types";
 import { $isPlayingWhite, setIsPlayingWhiteStore } from "@/store/chessSettings";
-import { getAuthHeader } from "@/utils/auth";
+import { getAuthHeader, handleUnauthorizedResponse } from "@/utils/auth";
 import { useStore } from "@nanostores/react";
 import { toast } from "react-toastify";
 import { API_URL } from "@/env";
@@ -40,6 +40,9 @@ const usePlayingColor = (pgn: StoredPgn, options: UsePlayingColorOptions = {}) =
       });
       if (!response.ok) {
         setIsPlayingWhiteStore(previousValue);
+        if (handleUnauthorizedResponse(response.status)) {
+          return;
+        }
         toast.error("Error updating PGN");
       }
     } catch {

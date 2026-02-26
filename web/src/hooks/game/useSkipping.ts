@@ -1,7 +1,7 @@
 import { API_URL } from "@/env";
 import { StoredPgn } from "@/lib/types";
 import { $isSkipping, setIsSkippingStore } from "@/store/chessSettings";
-import { getAuthHeader } from "@/utils/auth";
+import { getAuthHeader, handleUnauthorizedResponse } from "@/utils/auth";
 import { useStore } from "@nanostores/react";
 import { toast } from "react-toastify";
 
@@ -40,6 +40,9 @@ const useSkipping = (pgn: StoredPgn, options: UseSkippingOptions = {}) => {
       });
       if (!response.ok) {
         setIsSkippingStore(previousValue);
+        if (handleUnauthorizedResponse(response.status)) {
+          return;
+        }
         toast.error("Error updating PGN");
       }
     } catch {
