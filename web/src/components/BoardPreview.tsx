@@ -40,15 +40,15 @@ const BoardPreview = ({ pgn, gameTitle, isWhite }: BoardPreviewProps) => {
       <p className="pb-2 text-center font-medium text-foreground">{pgn.title}</p>
       <div className="relative">
         {/* Edit and Delete buttons */}
-        <div className="absolute top-[5px] right-[-42px] z-50 flex flex-col gap-3">
+        <div className="absolute right-2 top-2 z-50 flex flex-row gap-2 sm:right-[-42px] sm:top-[5px] sm:flex-col sm:gap-3">
           <button 
             onClick={handleEdit}
-            className="icon-btn flex h-[30px] w-[30px] items-center justify-center rounded-[100%]">
+            className="icon-btn flex h-[34px] w-[34px] items-center justify-center rounded-[100%] sm:h-[30px] sm:w-[30px]">
               <FontAwesomeIcon className="w-[14px] h-[14px]" icon={faPenToSquare} />
           </button>
           <button 
             onClick={handleDelete}
-            className="icon-btn flex h-[30px] w-[30px] items-center justify-center rounded-[100%]">
+            className="icon-btn flex h-[34px] w-[34px] items-center justify-center rounded-[100%] sm:h-[30px] sm:w-[30px]">
               <FontAwesomeIcon className="w-[14px] h-[14px]" icon={faTrash} />
           </button>
         </div>

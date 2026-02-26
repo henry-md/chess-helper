@@ -24,12 +24,12 @@ const Dashboard = () => {
   return (
     <>
       <Navbar />
-      <div className="mx-auto max-w-[1280px] px-6 pb-12 pt-28">
-        <h1 className="mx-auto mb-8 text-center text-3xl font-bold tracking-tight text-foreground">My Studies</h1>
+      <div className="mx-auto max-w-[1280px] px-4 pb-10 pt-24 sm:px-6 sm:pb-12 sm:pt-28">
+        <h1 className="mx-auto mb-8 text-center text-2xl font-bold tracking-tight text-foreground sm:text-3xl">My Studies</h1>
         {pgnArray.length === 0 && (
           <p className="mb-8 text-center text-sm text-muted-foreground">You have no games yet.</p>
         )}
-        <div className="mx-auto grid grid-cols-1 gap-16 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto grid grid-cols-1 gap-8 sm:grid-cols-2 sm:gap-16 lg:grid-cols-3">
           {
             Array.isArray(pgnArray) && pgnArray.map((pgn: StoredPgn, index) => (
               <BoardPreview key={index} pgn={pgn} gameTitle={pgn.title} isWhite={index % 2 === 0} />

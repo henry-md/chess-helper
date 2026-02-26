@@ -15,6 +15,7 @@ const Signup = () => {
   const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
+  const googleButtonContainerRef = useRef<HTMLDivElement | null>(null);
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -38,6 +39,27 @@ const Signup = () => {
     if (!GOOGLE_CLIENT_ID || !googleButtonRef.current) {
       return;
     }
+
+    const renderGoogleButton = () => {
+      const google = (window as any).google;
+      if (!google?.accounts?.id || !googleButtonRef.current) {
+        return;
+      }
+
+      const containerWidth = Math.floor(
+        googleButtonContainerRef.current?.getBoundingClientRect().width ?? 320
+      );
+      const buttonWidth = Math.max(220, Math.min(320, containerWidth));
+      googleButtonRef.current.innerHTML = "";
+      google.accounts.id.renderButton(googleButtonRef.current, {
+        type: "standard",
+        size: "large",
+        text: "signup_with",
+        shape: "rectangular",
+        theme: "outline",
+        width: buttonWidth,
+      });
+    };
 
     const initializeGoogleButton = () => {
       const google = (window as any).google;
@@ -64,21 +86,16 @@ const Signup = () => {
           navigate("/dashboard");
         },
       });
-
-      googleButtonRef.current.innerHTML = "";
-      google.accounts.id.renderButton(googleButtonRef.current, {
-        type: "standard",
-        size: "large",
-        text: "signup_with",
-        shape: "rectangular",
-        theme: "outline",
-        width: 320,
-      });
+      renderGoogleButton();
     };
+    const handleResize = () => renderGoogleButton();
+    window.addEventListener("resize", handleResize);
 
     if ((window as any).google?.accounts?.id) {
       initializeGoogleButton();
-      return;
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
     }
 
     const existingScript = document.getElementById("google-gsi-script");
@@ -86,7 +103,10 @@ const Signup = () => {
       existingScript.addEventListener("load", initializeGoogleButton, {
         once: true,
       });
-      return;
+      return () => {
+        window.removeEventListener("resize", handleResize);
+        existingScript.removeEventListener("load", initializeGoogleButton);
+      };
     }
 
     const script = document.createElement("script");
@@ -96,14 +116,17 @@ const Signup = () => {
     script.defer = true;
     script.onload = initializeGoogleButton;
     document.head.appendChild(script);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 pt-20">
-      <div className="glass-panel w-full max-w-sm space-y-8 rounded-2xl px-8 py-8">
+    <div className="flex min-h-[100dvh] items-center justify-center px-4 py-20 sm:min-h-screen sm:pt-20">
+      <div className="glass-panel w-full max-w-sm space-y-8 rounded-2xl px-6 py-7 sm:px-8 sm:py-8">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-center text-foreground">
+          <h2 className="text-center text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             Create a new account
           </h2>
           <p className="mt-2 text-sm text-center text-muted-foreground">
@@ -173,7 +196,9 @@ const Signup = () => {
               </div>
             </div>
             <div className="flex justify-center">
-              <div ref={googleButtonRef} />
+              <div ref={googleButtonContainerRef} className="w-full max-w-[320px]">
+                <div ref={googleButtonRef} />
+              </div>
             </div>
           </div>
         )}

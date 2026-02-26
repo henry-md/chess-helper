@@ -109,19 +109,33 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
 
   if (!isOpen) return null;
 
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const isCompactViewport = viewportWidth < 768;
+  const cardWidth = Math.max(160, Math.min(CARD_WIDTH, viewportWidth - 24));
+  const estimatedCardHeight = isCompactViewport ? 292 : 210;
+  const maxTooltipLeft = Math.max(12, viewportWidth - cardWidth - 12);
   const hasTarget = Boolean(targetRect);
-  const tooltipTop = hasTarget
-    ? clamp((targetRect?.top ?? 0) + (targetRect?.height ?? 0) / 2 - 90, 12, window.innerHeight - 210)
-    : clamp(window.innerHeight * 0.18, 12, window.innerHeight - 210);
+  const tooltipTop = isCompactViewport
+    ? Math.max(12, viewportHeight - estimatedCardHeight - 12)
+    : hasTarget
+      ? clamp(
+          (targetRect?.top ?? 0) + (targetRect?.height ?? 0) / 2 - 90,
+          12,
+          viewportHeight - estimatedCardHeight - 12
+        )
+      : clamp(viewportHeight * 0.18, 12, viewportHeight - estimatedCardHeight - 12);
 
   const rightPreferredLeft = (targetRect?.left ?? 0) + (targetRect?.width ?? 0) + HORIZONTAL_GAP;
-  const canPlaceRight = rightPreferredLeft + CARD_WIDTH + 12 <= window.innerWidth;
-  const leftPreferredLeft = (targetRect?.left ?? 0) - CARD_WIDTH - HORIZONTAL_GAP;
-  const tooltipLeft = hasTarget
-    ? canPlaceRight
-      ? rightPreferredLeft
-      : clamp(leftPreferredLeft, 12, window.innerWidth - CARD_WIDTH - 12)
-    : clamp(window.innerWidth * 0.5 - CARD_WIDTH * 0.5, 12, window.innerWidth - CARD_WIDTH - 12);
+  const canPlaceRight = rightPreferredLeft + cardWidth + 12 <= viewportWidth;
+  const leftPreferredLeft = (targetRect?.left ?? 0) - cardWidth - HORIZONTAL_GAP;
+  const tooltipLeft = isCompactViewport
+    ? clamp(viewportWidth * 0.5 - cardWidth * 0.5, 12, maxTooltipLeft)
+    : hasTarget
+      ? canPlaceRight
+        ? rightPreferredLeft
+        : clamp(leftPreferredLeft, 12, maxTooltipLeft)
+      : clamp(viewportWidth * 0.5 - cardWidth * 0.5, 12, maxTooltipLeft);
 
   const overlay = (
     <>
@@ -138,7 +152,7 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
         />
       )}
 
-      <div className="tutorial-tooltip-card" style={{ top: tooltipTop, left: tooltipLeft, width: CARD_WIDTH }}>
+      <div className="tutorial-tooltip-card" style={{ top: tooltipTop, left: tooltipLeft, width: cardWidth }}>
         <p className="tutorial-tooltip-title">{activeStep.title}</p>
         <p className="tutorial-tooltip-body">{activeStep.body}</p>
         {stepIdx === 0 && (

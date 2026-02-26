@@ -51,42 +51,42 @@ const EditPgnDialog = ({ pgn, open, setEditDialogOpen }: EditPgnDialogProps) => 
 
   return (
     <Dialog open={open} onOpenChange={setEditDialogOpen}>
-      <DialogContent>
-        <form className="grid w-full gap-1.5 p-1 pr-3">
+      <DialogContent className="w-[calc(100%-1rem)] max-h-[90vh] overflow-y-auto sm:w-full">
+        <form className="grid w-full gap-1.5 p-1 sm:pr-3">
           <DialogTitle>Edit PGN</DialogTitle>
           <DialogDescription>
             Edit the title, PGN, and notes of your study here.
           </DialogDescription>
-          <div className="grid items-center grid-cols-4 gap-8 my-4">
-            <Label htmlFor="title" className="text-sm text-right">
+          <div className="my-4 grid gap-4 sm:grid-cols-4 sm:items-center sm:gap-8">
+            <Label htmlFor="title" className="text-sm text-left sm:text-right">
               Title
             </Label>
             <Input
               id="title"
               value={title}
-              className="col-span-3"
+              className="sm:col-span-3"
               onChange={(e) => setTitle(e.target.value)}
             />
-            <Label htmlFor="pgn" className="text-sm text-right">
+            <Label htmlFor="pgn" className="text-sm text-left sm:text-right">
               PGN
             </Label>
             <Input
               id="pgn"
               value={moveText}
-              className="col-span-3"
+              className="sm:col-span-3"
               onChange={(e) => setMoveText(e.target.value)}
             />
-            <Label htmlFor="notes" className="text-sm text-right">
+            <Label htmlFor="notes" className="text-sm text-left sm:text-right">
               Notes
             </Label>
             <Input
               id="notes"
               value={notes}
-              className="col-span-3"
+              className="sm:col-span-3"
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
             <DialogClose asChild>
               <Button
                 onClick={() => setEditDialogOpen(false)}

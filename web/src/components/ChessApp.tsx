@@ -1189,13 +1189,16 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   return (
     <>
       <div className={cn(
-        "flex w-full min-h-screen items-center justify-center gap-6 px-6 pb-8 pt-24"
+        "chess-app-layout flex w-full min-h-[100dvh] flex-col items-center justify-start gap-4 px-3 pb-6 pt-24 lg:min-h-screen lg:flex-row lg:items-center lg:justify-center lg:gap-6 lg:px-6 lg:pb-8"
       )}>
         {/* Board */}
         <div
           ref={boardRef}
-          className="glass-panel relative rounded-lg p-2"
-          style={{ width: "min(80vh, 70vw)", height: "min(80vh, 70vw)" }}
+          className="chess-board-shell glass-panel relative w-full max-w-full rounded-lg p-2"
+          style={{
+            width: "var(--chess-board-shell-size, min(80vh, 70vw))",
+            height: "var(--chess-board-shell-size, min(80vh, 70vw))",
+          }}
         >
           <Board
             currFen={currFen} 
@@ -1391,17 +1394,20 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
 
         {/* Aside */}
         <div className={cn(
-          "glass-panel-soft flex flex-col items-center justify-center gap-2 rounded-xl p-3",
+          "chess-side-shell glass-panel-soft flex w-full max-w-full flex-col items-stretch justify-start gap-3 rounded-xl p-3 lg:items-center lg:justify-center lg:gap-2",
           debug && "border border-red-500"
-        )} style={{ width: 'min(30vw, 400px)', height: 'min(80vh, 70vw)' }}>
+        )} style={{
+          width: "var(--chess-aside-width, min(30vw, 400px))",
+          height: "var(--chess-aside-height, min(80vh, 70vw))",
+        }}>
           
           {/* Title Notes Pgn */}
           <div className={cn(
-            "flex h-full w-full flex-grow flex-col items-center gap-3 p-2",
+            "flex w-full flex-col items-stretch gap-3 p-2 lg:h-full lg:flex-grow lg:items-center",
             debug && "border border-blue-500"
           )}>
-            <div className="flex w-full flex-row items-center justify-start gap-4">
-              <h3 className="text-2xl">{pgn?.title}</h3>
+            <div className="flex w-full min-w-0 flex-row items-center justify-start gap-3 lg:gap-4">
+              <h3 className="min-w-0 flex-1 text-xl lg:text-2xl">{pgn?.title}</h3>
               {!isTutorial && (
                 <button onClick={() => setEditDialogOpen(true)}>
                   <i className="fa-regular fa-pen-to-square"></i>
@@ -1417,7 +1423,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
             {isPgnMoveHighlightingEnabled ? (
               <div
                 ref={tutorialPgnRef}
-                className="tutorial-pgn-display h-full w-full flex-grow rounded-md border border-border bg-card/60 p-2 text-foreground shadow-sm"
+                className="tutorial-pgn-display h-full min-h-[200px] w-full flex-grow rounded-md border border-border bg-card/60 p-2 text-foreground shadow-sm lg:min-h-0"
                 role="textbox"
                 aria-readonly="true"
                 aria-label="PGN"
@@ -1435,7 +1441,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               <textarea
                 ref={editorPgnRef}
                 value={pgn?.moveText || ''}
-                className="h-full w-full flex-grow rounded-md border border-border bg-card/60 p-2 text-foreground shadow-sm"
+                className="h-full min-h-[200px] w-full flex-grow rounded-md border border-border bg-card/60 p-2 text-foreground shadow-sm lg:min-h-0"
                 placeholder="PGN"
                 readOnly={false}
               />
@@ -1443,7 +1449,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           </div>
           
           {/* Game Settings */}
-          <div ref={colorRef} className="flex flex-row items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
+          <div ref={colorRef} className="flex w-full flex-row flex-wrap items-center justify-between gap-2 text-sm font-medium text-muted-foreground lg:justify-center">
             Play as:
             <button 
               className={`h-[25px] w-[25px] rounded-md bg-[var(--board-light)] ${isPlayingWhite ? 'border-2 border-[var(--brand-highlight)] shadow-[0_0_0_1px_var(--highlight-ring)]' : 'border border-border/70'} box-border`} 
@@ -1456,7 +1462,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               onClick={() => setIsPlayingWhite(false)}
             ></button>
           </div>
-          <div ref={skipRef} className="flex flex-row items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
+          <div ref={skipRef} className="flex w-full flex-row flex-wrap items-center justify-between gap-2 text-sm font-medium text-muted-foreground lg:justify-center">
             Skip to first branch:
             <button 
               disabled={isTutorialInteractionLocked}
@@ -1470,7 +1476,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
             </button>
           </div>
           {!isTutorial && (
-            <div className="flex flex-row items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
+            <div className="flex w-full flex-row flex-wrap items-center justify-between gap-2 text-sm font-medium text-muted-foreground lg:justify-center">
               Highlight moves:
               <button onClick={() => setIsMoveHighlightingEnabled((enabled) => !enabled)}>
                 <FontAwesomeIcon
@@ -1485,7 +1491,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           {/* Hint Button */}
           <button 
             ref={hintRef}
-            className="w-full rounded-md border border-border bg-card/60 p-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/70"
+            className="min-h-[44px] w-full rounded-md border border-border bg-card/60 p-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/70 lg:min-h-0"
             onClick={showHint}
             disabled={isAutoPlaying || isCompleted || isTutorialInteractionLocked}
           >
