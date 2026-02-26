@@ -1,12 +1,13 @@
 :root {
-  --board-zinc-dark: #5f665b;
-  --board-zinc-light: #d8d5cd;
+  --board-zinc-dark: #667a62;
+  --board-zinc-light: #d7ddd0;
   --board-dark: var(--board-zinc-dark);
-  --board-dark-overlay: rgba(95, 102, 91, 0.82);
+  --board-dark-overlay: rgba(102, 122, 98, 0.8);
   --board-light: var(--board-zinc-light);
-  --board-backdrop: radial-gradient(circle at 18% 20%, rgba(90, 146, 123, 0.26), transparent 45%),
-    radial-gradient(circle at 84% 80%, rgba(106, 101, 149, 0.2), transparent 50%),
-    linear-gradient(155deg, #2a2f36 0%, #222834 52%, #1f232c 100%);
+  --board-backdrop: radial-gradient(circle at 14% 14%, rgba(165, 191, 150, 0.3), transparent 44%),
+    radial-gradient(circle at 78% 28%, rgba(123, 161, 138, 0.2), transparent 46%),
+    radial-gradient(circle at 84% 84%, rgba(137, 146, 182, 0.14), transparent 54%),
+    linear-gradient(155deg, #2b322f 0%, #242d2b 52%, #20272a 100%);
 
   --surface-base: rgba(39, 39, 42, 0.94);
   --surface-soft: rgba(63, 63, 70, 0.78);
@@ -20,14 +21,14 @@
   --text-strong: #f4f4f5;
   --text-muted: #a1a1aa;
 
-  --brand-strong: #16a34a;
-  --brand-strong-hover: #15803d;
-  --brand-contrast: #ecfdf5;
-  --brand-highlight: #4ade80;
-  --highlight-ring: rgba(74, 222, 128, 0.68);
-  --highlight-glow: rgba(52, 211, 153, 0.24);
-  --token-highlight-bg: rgba(74, 222, 128, 0.2);
-  --token-highlight-ring: rgba(74, 222, 128, 0.42);
+  --brand-strong: #6e8a64;
+  --brand-strong-hover: #5e7556;
+  --brand-contrast: #f2f5ee;
+  --brand-highlight: #91aa86;
+  --highlight-ring: rgba(145, 170, 134, 0.64);
+  --highlight-glow: rgba(145, 170, 134, 0.2);
+  --token-highlight-bg: rgba(145, 170, 134, 0.19);
+  --token-highlight-ring: rgba(145, 170, 134, 0.38);
 }
 
 #root {
@@ -47,7 +48,7 @@
 :where(input, textarea, select):focus {
   outline: none;
   border-color: var(--highlight-ring);
-  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.14);
+  box-shadow: 0 0 0 3px rgba(145, 170, 134, 0.16);
 }
 
 :where(input, textarea, select)::placeholder {

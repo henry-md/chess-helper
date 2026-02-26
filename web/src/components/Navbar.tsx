@@ -7,6 +7,8 @@ const Navbar = () => {
   const isAuthenticated = useStore($isAuthenticated);
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const navTabClass =
+    "cursor-pointer rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--token-highlight-bg)] hover:text-foreground hover:shadow-[0_0_0_1px_var(--highlight-ring)]";
 
   return (
     <nav className="fixed left-1/2 top-4 z-50 -translate-x-1/2">
@@ -14,7 +16,7 @@ const Navbar = () => {
         <li>
           <button
             type="button"
-            className="cursor-pointer rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground"
+            className={navTabClass}
             onClick={() => navigate("/")}
           >
             Tutorial
@@ -23,7 +25,7 @@ const Navbar = () => {
         <li>
           <button
             type="button"
-            className="cursor-pointer rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground"
+            className={navTabClass}
             onClick={() => navigate("/dashboard")}
           >
             Dashboard
@@ -33,7 +35,7 @@ const Navbar = () => {
           <li>
             <button
               type="button"
-              className="cursor-pointer rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground"
+              className={navTabClass}
               onClick={logout}
             >
               Logout
@@ -43,7 +45,7 @@ const Navbar = () => {
           <li>
             <button
               type="button"
-              className="cursor-pointer rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground"
+              className={navTabClass}
               onClick={() => navigate("/login")}
             >
               Login

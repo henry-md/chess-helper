@@ -1277,7 +1277,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
             className={cn(
               "px-3 py-2 w-full text-sm font-semibold text-center rounded border",
               isCompleted
-                ? "border-emerald-400/70 bg-emerald-500/15 text-emerald-100"
+                ? "border-[var(--highlight-ring)] bg-[var(--token-highlight-bg)] text-foreground"
                 : "border-border bg-card/60 text-foreground"
             )}
           >

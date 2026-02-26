@@ -14,8 +14,8 @@
     --popover: 228 9% 16%;
     --popover-foreground: 210 20% 94%;
 
-    --primary: 142 64% 42%;
-    --primary-foreground: 140 70% 97%;
+    --primary: 104 16% 47%;
+    --primary-foreground: 90 26% 95%;
 
     --secondary: 225 8% 22%;
     --secondary-foreground: 210 15% 90%;
@@ -31,7 +31,7 @@
 
     --border: 225 8% 30%;
     --input: 225 9% 27%;
-    --ring: 142 67% 42%;
+    --ring: 104 18% 49%;
 
     --radius: 0.75rem;
   }
@@ -46,8 +46,8 @@
     --popover: 225 9% 14%;
     --popover-foreground: 210 20% 95%;
 
-    --primary: 143 61% 46%;
-    --primary-foreground: 140 65% 97%;
+    --primary: 104 18% 50%;
+    --primary-foreground: 90 26% 95%;
 
     --secondary: 225 8% 20%;
     --secondary-foreground: 210 16% 92%;
@@ -63,7 +63,7 @@
 
     --border: 225 8% 27%;
     --input: 225 8% 24%;
-    --ring: 143 63% 46%;
+    --ring: 104 20% 52%;
   }
 }
 
@@ -76,7 +76,7 @@
     @apply bg-background text-foreground antialiased;
     background-image:
       radial-gradient(circle at 0% 0%, hsl(220 12% 28% / 0.34), transparent 45%),
-      radial-gradient(circle at 100% 0%, hsl(152 42% 23% / 0.24), transparent 40%),
+      radial-gradient(circle at 100% 0%, hsl(103 20% 24% / 0.22), transparent 40%),
       linear-gradient(180deg, hsl(224 10% 14%), hsl(225 10% 10%));
     background-attachment: fixed;
     min-height: 100vh;
