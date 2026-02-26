@@ -1,9 +1,7 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import "react-toastify/dist/ReactToastify.css";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import useAuth from "@/hooks/useAuth";
-import { $isAuthenticated, setIsAuthenticated } from "./store/auth";
-import { useStore } from "@nanostores/react";
 import Game from "./pages/Game";
 
 // Pages
@@ -15,25 +13,32 @@ import Register from "./pages/Register";
 
 function App() {
   const { validate } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const authenticationRoutes = ["/login", "/register"];
-  const isAuthenticated = useStore($isAuthenticated);
-  
-  const isInAuthenticationRoute = useMemo(() => {
-    return authenticationRoutes.includes(window.location.pathname);
-  }, [window.location.pathname]);
+  const isInAuthenticationRoute = authenticationRoutes.includes(location.pathname);
   
   // Validate auth state but allow guests to browse the app.
   useEffect(() => {
+    let isMounted = true;
+
     const checkValidation = async () => {
       const isValidated = await validate();
-      setIsAuthenticated(isValidated);
+      if (!isMounted) {
+        return;
+      }
+
       if (isInAuthenticationRoute && isValidated) {
-        window.location.href = "/dashboard";
+        navigate("/dashboard", { replace: true });
       }
     };
+
     checkValidation();
+    return () => {
+      isMounted = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isInAuthenticationRoute, location.pathname, navigate]);
   
   return (
     <div className="App">
