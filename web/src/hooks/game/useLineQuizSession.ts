@@ -7,6 +7,8 @@ import {
 } from "@/constants";
 import {
   findNumMovesToFirstBranch,
+  hashMoveNode,
+  mainlinesToMoveTree,
   moveTextToMainlines,
   toPgnMoveOccurrenceKey,
 } from "@/utils/chess/pgn-parser";
@@ -17,12 +19,26 @@ const HINT_DURATION_MS = 500;
 const OPPONENT_MOVE_HOVER_DURATION_MS =
   BUFFFER_TIME_BETWEEN_USER_AND_OPPONENT_MOVE + LENGTH_OF_OPPONENT_MOVE;
 
-type PositionMoveLineIndex = Map<string, Map<string, number[]>>;
+type PositionMoveLeafIndex = Map<string, Map<string, string[]>>;
+
+type LeafPlan = {
+  leafHash: string;
+  sanPath: string[];
+  nodeHashPath: string[];
+};
+
+type TreeIndex = {
+  leafPlansByHash: Map<string, LeafPlan>;
+  leafHashesInOrder: string[];
+  positionMoveLeafIndex: PositionMoveLeafIndex;
+  occurrenceNodeHashByKey: Map<string, string>;
+};
 
 type UseLineQuizSessionArgs = {
   moveText: string;
   isPlayingWhite: boolean;
   isSkipping: boolean;
+  initialVisitedNodeHashes?: string[];
   isPaused?: boolean;
   randomizeOpponentBranchMoves?: boolean;
   manualLineAdvance?: boolean;
@@ -33,6 +49,7 @@ type UseLineQuizSessionResult = {
   currFen: string;
   isAutoPlaying: boolean;
   isCompleted: boolean;
+  visitedNodeHashes: string[];
   isTransitioningBetweenLines: boolean;
   isAwaitingLineAdvance: boolean;
   remainingLineCount: number;
@@ -46,6 +63,7 @@ type UseLineQuizSessionResult = {
   stepForward: () => void;
   stepBackward: () => void;
   showHint: () => void;
+  restartSession: () => void;
 };
 
 const removeTimeoutId = (timeoutIds: number[], targetId: number): number[] => {
@@ -56,37 +74,108 @@ const getPositionKey = (nextMoveIndex: number, playedMoves: string[]): string =>
   return `${nextMoveIndex}|${playedMoves.join(" ")}`;
 };
 
-const buildPositionMoveLineIndex = (lineMovesByIndex: string[][]): PositionMoveLineIndex => {
-  const positionMoveLineIndex: PositionMoveLineIndex = new Map();
-
-  for (const [lineIdx, lineMoves] of lineMovesByIndex.entries()) {
-    for (let moveIdx = 0; moveIdx < lineMoves.length; moveIdx++) {
-      const positionKey = getPositionKey(moveIdx, lineMoves.slice(0, moveIdx));
-      const move = lineMoves[moveIdx];
-
-      if (!positionMoveLineIndex.has(positionKey)) {
-        positionMoveLineIndex.set(positionKey, new Map());
-      }
-
-      const moveToLineIndices = positionMoveLineIndex.get(positionKey)!;
-      if (!moveToLineIndices.has(move)) {
-        moveToLineIndices.set(move, []);
-      }
-
-      const lineIndices = moveToLineIndices.get(move)!;
-      if (!lineIndices.includes(lineIdx)) {
-        lineIndices.push(lineIdx);
-      }
-    }
+const chooseLeafHash = (
+  candidateLeafHashes: string[] | undefined,
+  visitedLeafHashes: Set<string>
+): string | null => {
+  if (!candidateLeafHashes || candidateLeafHashes.length === 0) {
+    return null;
   }
 
-  return positionMoveLineIndex;
+  const firstUnvisited = candidateLeafHashes.find((leafHash) => !visitedLeafHashes.has(leafHash));
+  return firstUnvisited ?? candidateLeafHashes[0] ?? null;
+};
+
+const normalizeVisitedNodeHashes = (nodeHashes: string[] | undefined): string[] => {
+  if (!nodeHashes || nodeHashes.length === 0) {
+    return [];
+  }
+
+  return Array.from(new Set(nodeHashes.filter((nodeHash) => typeof nodeHash === "string" && nodeHash.length > 0)));
+};
+
+const buildTreeIndex = (lineMovesByIndex: string[][]): TreeIndex => {
+  const mainlines = lineMovesByIndex.map((moves) => moves.join(" "));
+  const root = mainlinesToMoveTree(mainlines);
+
+  const leafPlansByHash = new Map<string, LeafPlan>();
+  const leafHashesInOrder: string[] = [];
+  const positionMoveLeafIndex: PositionMoveLeafIndex = new Map();
+  const occurrenceNodeHashByKey = new Map<string, string>();
+
+  const walk = (node: typeof root, sanPath: string[], nodeHashPath: string[]) => {
+    if (node.children.length === 0) {
+      if (nodeHashPath.length === 0) {
+        return;
+      }
+
+      const leafHash = nodeHashPath[nodeHashPath.length - 1] ?? "";
+      if (!leafHash || leafPlansByHash.has(leafHash)) {
+        return;
+      }
+
+      const plan: LeafPlan = {
+        leafHash,
+        sanPath: [...sanPath],
+        nodeHashPath: [...nodeHashPath],
+      };
+
+      leafPlansByHash.set(leafHash, plan);
+      leafHashesInOrder.push(leafHash);
+
+      for (let moveIndex = 0; moveIndex < sanPath.length; moveIndex++) {
+        const positionKey = `${moveIndex}|${sanPath.slice(0, moveIndex).join(" ")}`;
+        const moveSan = sanPath[moveIndex] ?? "";
+        const nodeHash = nodeHashPath[moveIndex] ?? "";
+        if (!moveSan || !nodeHash) {
+          continue;
+        }
+
+        let moveToLeafHashes = positionMoveLeafIndex.get(positionKey);
+        if (!moveToLeafHashes) {
+          moveToLeafHashes = new Map<string, string[]>();
+          positionMoveLeafIndex.set(positionKey, moveToLeafHashes);
+        }
+
+        let leafHashesForMove = moveToLeafHashes.get(moveSan);
+        if (!leafHashesForMove) {
+          leafHashesForMove = [];
+          moveToLeafHashes.set(moveSan, leafHashesForMove);
+        }
+
+        if (!leafHashesForMove.includes(leafHash)) {
+          leafHashesForMove.push(leafHash);
+        }
+
+        const occurrenceKey = toPgnMoveOccurrenceKey(positionKey, moveSan);
+        if (!occurrenceNodeHashByKey.has(occurrenceKey)) {
+          occurrenceNodeHashByKey.set(occurrenceKey, nodeHash);
+        }
+      }
+      return;
+    }
+
+    for (const child of node.children) {
+      const childHash = hashMoveNode(child);
+      walk(child, [...sanPath, child.move], [...nodeHashPath, childHash]);
+    }
+  };
+
+  walk(root, [], []);
+
+  return {
+    leafPlansByHash,
+    leafHashesInOrder,
+    positionMoveLeafIndex,
+    occurrenceNodeHashByKey,
+  };
 };
 
 const useLineQuizSession = ({
   moveText,
   isPlayingWhite,
   isSkipping,
+  initialVisitedNodeHashes = [],
   isPaused = false,
   randomizeOpponentBranchMoves = false,
   manualLineAdvance = false,
@@ -97,18 +186,22 @@ const useLineQuizSession = ({
     () => mainlines.map((line) => line.split(/\s+/).filter(Boolean)),
     [mainlines]
   );
-  const positionMoveLineIndex = useMemo(
-    () => buildPositionMoveLineIndex(lineMovesByIndex),
-    [lineMovesByIndex]
-  );
+  const treeIndex = useMemo(() => buildTreeIndex(lineMovesByIndex), [lineMovesByIndex]);
   const skipPlies = useMemo(() => findNumMovesToFirstBranch(moveText), [moveText]);
+  const normalizedInitialVisitedNodeHashes = useMemo(
+    () => normalizeVisitedNodeHashes(initialVisitedNodeHashes),
+    [initialVisitedNodeHashes]
+  );
 
   const [currFen, setCurrFen] = useState(START_FEN);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [visitedNodeHashes, setVisitedNodeHashes] = useState<string[]>(
+    normalizedInitialVisitedNodeHashes
+  );
   const [isTransitioningBetweenLines, setIsTransitioningBetweenLines] = useState(false);
   const [isAwaitingLineAdvance, setIsAwaitingLineAdvance] = useState(false);
-  const [remainingLineCount, setRemainingLineCount] = useState(lineMovesByIndex.length);
+  const [remainingLineCount, setRemainingLineCount] = useState(treeIndex.leafHashesInOrder.length);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(-1);
   const [nextExpectedMoveSan, setNextExpectedMoveSan] = useState<string | null>(null);
   const [nextMovePositionKey, setNextMovePositionKey] = useState("0|");
@@ -116,6 +209,7 @@ const useLineQuizSession = ({
     null
   );
   const [moveRejectionMessage, setMoveRejectionMessage] = useState<string | null>(null);
+
   const isAutoPlayingRef = useRef(false);
   const isCompletedRef = useRef(false);
   const isAwaitingLineAdvanceRef = useRef(false);
@@ -123,23 +217,24 @@ const useLineQuizSession = ({
   const randomizeOpponentBranchMovesRef = useRef(randomizeOpponentBranchMoves);
 
   const chessRef = useRef(new Chess());
-  const movesRef = useRef<string[]>([]);
-  const currentLineIdxRef = useRef(0);
+  const currentTargetLeafHashRef = useRef<string | null>(null);
   const currentMoveIdxRef = useRef(-1);
   const furthestMoveIdxRef = useRef(-1);
+  const playedSanHistoryRef = useRef<string[]>([]);
   const scheduledTimeoutIdsRef = useRef<number[]>([]);
   const autoMoveHighlightTimeoutIdRef = useRef<number | null>(null);
-  const completedLineIndicesRef = useRef<Set<number>>(new Set());
+  const visitedLeafHashesRef = useRef<Set<string>>(new Set());
+  const visitedNodeHashesRef = useRef<Set<string>>(new Set());
   const branchCycleChoicesRef = useRef<Map<string, Set<string>>>(new Map());
-  const pendingNextLineIdxRef = useRef<number | null>(null);
+  const pendingNextLeafHashRef = useRef<string | null>(null);
 
   const isPlayingWhiteRef = useRef(isPlayingWhite);
   const isSkippingRef = useRef(isSkipping);
   const manualLineAdvanceRef = useRef(manualLineAdvance);
   const skipPliesRef = useRef(skipPlies);
-  const lineMovesByIndexRef = useRef(lineMovesByIndex);
-  const positionMoveLineIndexRef = useRef(positionMoveLineIndex);
+  const treeIndexRef = useRef(treeIndex);
   const onSessionCompleteRef = useRef(onSessionComplete);
+  const initialVisitedNodeHashesRef = useRef(normalizedInitialVisitedNodeHashes);
 
   useEffect(() => {
     isPlayingWhiteRef.current = isPlayingWhite;
@@ -158,16 +253,16 @@ const useLineQuizSession = ({
   }, [skipPlies]);
 
   useEffect(() => {
-    lineMovesByIndexRef.current = lineMovesByIndex;
-  }, [lineMovesByIndex]);
-
-  useEffect(() => {
-    positionMoveLineIndexRef.current = positionMoveLineIndex;
-  }, [positionMoveLineIndex]);
+    treeIndexRef.current = treeIndex;
+  }, [treeIndex]);
 
   useEffect(() => {
     onSessionCompleteRef.current = onSessionComplete;
   }, [onSessionComplete]);
+
+  useEffect(() => {
+    initialVisitedNodeHashesRef.current = normalizedInitialVisitedNodeHashes;
+  }, [normalizedInitialVisitedNodeHashes]);
 
   useEffect(() => {
     isAutoPlayingRef.current = isAutoPlaying;
@@ -216,19 +311,12 @@ const useLineQuizSession = ({
     [clearAutoMoveHighlight]
   );
 
-  const syncNextMoveState = useCallback((currentMoveIndexInLine: number) => {
-    const nextMoveIndexInLine = currentMoveIndexInLine + 1;
-    const playedMoves = chessRef.current.history();
-    setNextExpectedMoveSan(movesRef.current[nextMoveIndexInLine] ?? null);
-    setNextMovePositionKey(getPositionKey(nextMoveIndexInLine, playedMoves));
-  }, []);
-
   const clearScheduledActions = useCallback(() => {
     clearScheduledTimeouts();
     clearAutoMoveHighlight();
     setIsTransitioningBetweenLines(false);
     setIsAwaitingLineAdvance(false);
-    pendingNextLineIdxRef.current = null;
+    pendingNextLeafHashRef.current = null;
     setIsAutoPlaying(false);
   }, [clearAutoMoveHighlight, clearScheduledTimeouts]);
 
@@ -246,44 +334,97 @@ const useLineQuizSession = ({
     return nextMoveIsWhite === isPlayingWhiteRef.current;
   }, []);
 
+  const getCurrentTargetPlan = useCallback((): LeafPlan | null => {
+    const targetLeafHash = currentTargetLeafHashRef.current;
+    if (!targetLeafHash) {
+      return null;
+    }
+
+    return treeIndexRef.current.leafPlansByHash.get(targetLeafHash) ?? null;
+  }, []);
+
   const isCurrentLineComplete = useCallback((): boolean => {
+    const targetPlan = getCurrentTargetPlan();
+    if (!targetPlan) {
+      return false;
+    }
+
     return (
       currentMoveIdxRef.current >= 0 &&
-      currentMoveIdxRef.current === movesRef.current.length - 1
+      currentMoveIdxRef.current >= targetPlan.sanPath.length - 1
     );
+  }, [getCurrentTargetPlan]);
+
+  const syncNextMoveState = useCallback((currentMoveIndexInLine: number) => {
+    const targetPlan = getCurrentTargetPlan();
+    const nextMoveIndexInLine = currentMoveIndexInLine + 1;
+    const playedMoves = chessRef.current.history();
+
+    setNextExpectedMoveSan(targetPlan?.sanPath[nextMoveIndexInLine] ?? null);
+    setNextMovePositionKey(getPositionKey(nextMoveIndexInLine, playedMoves));
+  }, [getCurrentTargetPlan]);
+
+  const getNextIncompleteLeafHash = useCallback((): string | null => {
+    const visitedLeafHashes = visitedLeafHashesRef.current;
+    for (const leafHash of treeIndexRef.current.leafHashesInOrder) {
+      if (!visitedLeafHashes.has(leafHash)) {
+        return leafHash;
+      }
+    }
+    return null;
+  }, []);
+
+  const markVisitedNodeHash = useCallback((nodeHash: string | undefined): void => {
+    if (!nodeHash) {
+      return;
+    }
+
+    if (visitedNodeHashesRef.current.has(nodeHash)) {
+      return;
+    }
+
+    visitedNodeHashesRef.current.add(nodeHash);
+    setVisitedNodeHashes((prevNodeHashes) => {
+      if (prevNodeHashes.includes(nodeHash)) {
+        return prevNodeHashes;
+      }
+      return [...prevNodeHashes, nodeHash];
+    });
   }, []);
 
   const playExpectedNextMove = useCallback((): boolean => {
     const playedMovesBefore = chessRef.current.history();
-    const nextMoveIndex = currentMoveIdxRef.current + 1;
-    const fallbackMove = movesRef.current[nextMoveIndex];
+    const nextMoveIndexInLine = currentMoveIdxRef.current + 1;
+    const targetPlan = getCurrentTargetPlan();
+    const fallbackMove = targetPlan?.sanPath[nextMoveIndexInLine];
     if (!fallbackMove) {
       return false;
     }
 
-    const positionKey = getPositionKey(nextMoveIndex, playedMovesBefore);
-    const moveToLineIndices = positionMoveLineIndexRef.current.get(positionKey);
+    const positionKey = getPositionKey(nextMoveIndexInLine, playedMovesBefore);
+    const moveToLeafHashes = treeIndexRef.current.positionMoveLeafIndex.get(positionKey);
     const isComputerTurn = !isUsersTurn();
 
     let selectedMove = fallbackMove;
-    let selectedLineIndices = moveToLineIndices?.get(fallbackMove) ?? [];
+    let selectedLeafHash = currentTargetLeafHashRef.current;
 
     if (
       randomizeOpponentBranchMovesRef.current &&
       isComputerTurn &&
-      moveToLineIndices &&
-      moveToLineIndices.size > 1
+      moveToLeafHashes &&
+      moveToLeafHashes.size > 1
     ) {
-      const moveOptions = Array.from(moveToLineIndices.entries());
-      const moveOptionsWithIncompleteLines = moveOptions.filter(([, lineIndices]) =>
-        lineIndices.some((lineIdx) => !completedLineIndicesRef.current.has(lineIdx))
+      const moveOptions = Array.from(moveToLeafHashes.entries());
+      const moveOptionsWithIncompleteLeaves = moveOptions.filter(([, leafHashes]) =>
+        leafHashes.some((leafHash) => !visitedLeafHashesRef.current.has(leafHash))
       );
       const selectionPool =
-        moveOptionsWithIncompleteLines.length > 0 ? moveOptionsWithIncompleteLines : moveOptions;
+        moveOptionsWithIncompleteLeaves.length > 0 ? moveOptionsWithIncompleteLeaves : moveOptions;
       const randomChoice = selectionPool[Math.floor(Math.random() * selectionPool.length)];
       if (randomChoice) {
-        selectedMove = randomChoice[0];
-        selectedLineIndices = randomChoice[1];
+        const [randomMoveSan, candidateLeafHashes] = randomChoice;
+        selectedMove = randomMoveSan;
+        selectedLeafHash = chooseLeafHash(candidateLeafHashes, visitedLeafHashesRef.current);
       }
     }
 
@@ -292,49 +433,44 @@ const useLineQuizSession = ({
       return false;
     }
 
+    if (selectedLeafHash) {
+      currentTargetLeafHashRef.current = selectedLeafHash;
+    }
+
+    const occurrenceKey = toPgnMoveOccurrenceKey(positionKey, selectedMove);
+    const nodeHash = treeIndexRef.current.occurrenceNodeHashByKey.get(occurrenceKey);
+    markVisitedNodeHash(nodeHash);
+
     flashAutoMoveOccurrence(positionKey, selectedMove);
 
-    if (selectedLineIndices.length > 0) {
-      const incompleteLineIndices = selectedLineIndices.filter(
-        (lineIdx) => !completedLineIndicesRef.current.has(lineIdx)
-      );
-      const nextLineIdx = incompleteLineIndices[0] ?? selectedLineIndices[0];
-      currentLineIdxRef.current = nextLineIdx;
-      movesRef.current = lineMovesByIndexRef.current[nextLineIdx] ?? [];
-    }
+    playedSanHistoryRef.current[nextMoveIndexInLine] = selectedMove;
+    playedSanHistoryRef.current = playedSanHistoryRef.current.slice(0, nextMoveIndexInLine + 1);
 
-    currentMoveIdxRef.current = nextMoveIndex;
-    setCurrentMoveIndex(nextMoveIndex);
-    syncNextMoveState(nextMoveIndex);
-    furthestMoveIdxRef.current = Math.max(furthestMoveIdxRef.current, nextMoveIndex);
+    currentMoveIdxRef.current = nextMoveIndexInLine;
+    setCurrentMoveIndex(nextMoveIndexInLine);
+    syncNextMoveState(nextMoveIndexInLine);
+    furthestMoveIdxRef.current = Math.max(furthestMoveIdxRef.current, nextMoveIndexInLine);
     setCurrFen(chessRef.current.fen());
-    return true;
-  }, [flashAutoMoveOccurrence, syncNextMoveState]);
 
-  const startLineRef = useRef<(lineIndex: number) => void>(() => {});
+    return true;
+  }, [flashAutoMoveOccurrence, getCurrentTargetPlan, isUsersTurn, markVisitedNodeHash, syncNextMoveState]);
+
+  const startLeafRef = useRef<(leafHash: string) => void>(() => {});
   const runAutoMovesRef = useRef<(pliesRemaining: number, delayMs: number) => void>(() => {});
 
-  const getNextIncompleteLineIndex = useCallback((): number | null => {
-    const completedLineIndices = completedLineIndicesRef.current;
-    const lines = lineMovesByIndexRef.current;
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-      if (!completedLineIndices.has(lineIdx)) {
-        return lineIdx;
-      }
-    }
-    return null;
-  }, []);
-
   const advanceToNextLineOrComplete = useCallback(() => {
-    completedLineIndicesRef.current.add(currentLineIdxRef.current);
+    const completedLeafHash = currentTargetLeafHashRef.current;
+    if (completedLeafHash) {
+      visitedLeafHashesRef.current.add(completedLeafHash);
+    }
 
-    const nextLineIdx = getNextIncompleteLineIndex();
-    if (nextLineIdx !== null) {
-      const remaining = lineMovesByIndexRef.current.length - completedLineIndicesRef.current.size;
+    const nextLeafHash = getNextIncompleteLeafHash();
+    if (nextLeafHash) {
+      const remaining = treeIndexRef.current.leafHashesInOrder.length - visitedLeafHashesRef.current.size;
       setRemainingLineCount(Math.max(remaining, 0));
 
       if (manualLineAdvanceRef.current) {
-        pendingNextLineIdxRef.current = nextLineIdx;
+        pendingNextLeafHashRef.current = nextLeafHash;
         setIsTransitioningBetweenLines(true);
         setIsAwaitingLineAdvance(true);
         setIsAutoPlaying(false);
@@ -344,19 +480,19 @@ const useLineQuizSession = ({
       setIsTransitioningBetweenLines(true);
       setIsAutoPlaying(true);
       scheduleAction(() => {
-        startLineRef.current(nextLineIdx);
+        startLeafRef.current(nextLeafHash);
       }, BUFFER_TIME_BEFORE_NEXT_LINE);
       return;
     }
 
     setIsTransitioningBetweenLines(false);
     setIsAwaitingLineAdvance(false);
-    pendingNextLineIdxRef.current = null;
+    pendingNextLeafHashRef.current = null;
     setRemainingLineCount(0);
     setIsAutoPlaying(false);
     setIsCompleted(true);
     onSessionCompleteRef.current?.();
-  }, [getNextIncompleteLineIndex, scheduleAction]);
+  }, [getNextIncompleteLeafHash, scheduleAction]);
 
   const runAutoMoves = useCallback(
     (pliesRemaining: number, delayMs: number = AUTO_MOVE_DELAY_MS): void => {
@@ -396,36 +532,40 @@ const useLineQuizSession = ({
   );
   runAutoMovesRef.current = runAutoMoves;
 
-  const startLine = useCallback(
-    (lineIndex: number): void => {
+  const startLeaf = useCallback(
+    (leafHash: string): void => {
       clearScheduledActions();
 
-      const lineMoves = lineMovesByIndexRef.current[lineIndex] ?? [];
-      currentLineIdxRef.current = lineIndex;
+      const targetPlan = treeIndexRef.current.leafPlansByHash.get(leafHash);
+      if (!targetPlan) {
+        return;
+      }
+
+      currentTargetLeafHashRef.current = leafHash;
       currentMoveIdxRef.current = -1;
       setCurrentMoveIndex(-1);
       furthestMoveIdxRef.current = -1;
+      playedSanHistoryRef.current = [];
       setIsCompleted(false);
       setIsTransitioningBetweenLines(false);
       setMoveRejectionMessage(null);
 
       chessRef.current.reset();
-      movesRef.current = lineMoves;
       setCurrFen(chessRef.current.fen());
       syncNextMoveState(-1);
 
-      if (movesRef.current.length === 0) {
+      if (targetPlan.sanPath.length === 0) {
         advanceToNextLineOrComplete();
         return;
       }
 
       let autoPlies = 0;
       if (isSkippingRef.current) {
-        autoPlies = Math.min(skipPliesRef.current, movesRef.current.length);
+        autoPlies = Math.min(skipPliesRef.current, targetPlan.sanPath.length);
       }
 
       const nextMoveIndexAfterSkip = autoPlies;
-      if (nextMoveIndexAfterSkip < movesRef.current.length) {
+      if (nextMoveIndexAfterSkip < targetPlan.sanPath.length) {
         const nextMoveIsWhite = nextMoveIndexAfterSkip % 2 === 0;
         const usersTurnAfterSkip = nextMoveIsWhite === isPlayingWhiteRef.current;
         if (!usersTurnAfterSkip) {
@@ -441,18 +581,73 @@ const useLineQuizSession = ({
     },
     [advanceToNextLineOrComplete, clearScheduledActions, syncNextMoveState]
   );
-  startLineRef.current = startLine;
+  startLeafRef.current = startLeaf;
 
   const continueToNextLine = useCallback(() => {
-    const nextLineIdx = pendingNextLineIdxRef.current;
-    if (nextLineIdx === null) {
+    const nextLeafHash = pendingNextLeafHashRef.current;
+    if (!nextLeafHash) {
       return;
     }
 
-    pendingNextLineIdxRef.current = null;
+    pendingNextLeafHashRef.current = null;
     setIsAwaitingLineAdvance(false);
-    startLineRef.current(nextLineIdx);
+    startLeafRef.current(nextLeafHash);
   }, []);
+
+  const restartSession = useCallback(() => {
+    clearScheduledActions();
+    const leafHashesInOrder = treeIndexRef.current.leafHashesInOrder;
+
+    if (leafHashesInOrder.length === 0) {
+      chessRef.current.reset();
+      currentTargetLeafHashRef.current = null;
+      playedSanHistoryRef.current = [];
+      visitedLeafHashesRef.current = new Set();
+      visitedNodeHashesRef.current = new Set();
+      setVisitedNodeHashes([]);
+      branchCycleChoicesRef.current = new Map();
+      pendingNextLeafHashRef.current = null;
+      currentMoveIdxRef.current = -1;
+      furthestMoveIdxRef.current = -1;
+      setCurrentMoveIndex(-1);
+      setNextExpectedMoveSan(null);
+      setNextMovePositionKey("0|");
+      setIsCompleted(false);
+      setIsTransitioningBetweenLines(false);
+      setIsAwaitingLineAdvance(false);
+      setRemainingLineCount(0);
+      setMoveRejectionMessage(null);
+      setCurrFen(chessRef.current.fen());
+      return;
+    }
+
+    visitedLeafHashesRef.current = new Set();
+    visitedNodeHashesRef.current = new Set();
+    setVisitedNodeHashes([]);
+    branchCycleChoicesRef.current = new Map();
+    pendingNextLeafHashRef.current = null;
+    setIsCompleted(false);
+    setIsTransitioningBetweenLines(false);
+    setIsAwaitingLineAdvance(false);
+    setMoveRejectionMessage(null);
+    setRemainingLineCount(leafHashesInOrder.length);
+
+    const firstLeafHash = leafHashesInOrder[0];
+    if (!firstLeafHash) {
+      chessRef.current.reset();
+      currentTargetLeafHashRef.current = null;
+      playedSanHistoryRef.current = [];
+      currentMoveIdxRef.current = -1;
+      furthestMoveIdxRef.current = -1;
+      setCurrentMoveIndex(-1);
+      setNextExpectedMoveSan(null);
+      setNextMovePositionKey("0|");
+      setCurrFen(chessRef.current.fen());
+      return;
+    }
+
+    startLeafRef.current(firstLeafHash);
+  }, [clearScheduledActions]);
 
   const onPieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string): boolean => {
@@ -481,8 +676,9 @@ const useLineQuizSession = ({
       }
 
       const playedMovesBefore = chessRef.current.history();
-      const nextMoveIndex = currentMoveIdxRef.current + 1;
-      const expectedMove = movesRef.current[nextMoveIndex];
+      const nextMoveIndexInLine = currentMoveIdxRef.current + 1;
+      const targetPlan = getCurrentTargetPlan();
+      const expectedMove = targetPlan?.sanPath[nextMoveIndexInLine];
       if (!expectedMove) {
         return false;
       }
@@ -497,18 +693,18 @@ const useLineQuizSession = ({
         return false;
       }
 
-      const positionKey = getPositionKey(nextMoveIndex, playedMovesBefore);
-      const moveToLineIndices = positionMoveLineIndexRef.current.get(positionKey);
-      const lineIndicesForMove = moveToLineIndices?.get(moveAttempt.san) ?? [];
+      const positionKey = getPositionKey(nextMoveIndexInLine, playedMovesBefore);
+      const moveToLeafHashes = treeIndexRef.current.positionMoveLeafIndex.get(positionKey);
+      const leafHashesForMove = moveToLeafHashes?.get(moveAttempt.san) ?? [];
 
-      const isKnownPgnMoveAtPosition = lineIndicesForMove.length > 0;
+      const isKnownPgnMoveAtPosition = leafHashesForMove.length > 0;
       if (!isKnownPgnMoveAtPosition && moveAttempt.san !== expectedMove) {
         chessRef.current.undo();
         setCurrFen(chessRef.current.fen());
         return false;
       }
 
-      if (moveToLineIndices && moveToLineIndices.size > 1) {
+      if (moveToLeafHashes && moveToLeafHashes.size > 1) {
         const branchCycleChoices = branchCycleChoicesRef.current;
         const alreadyChosenAtPosition = branchCycleChoices.get(positionKey) ?? new Set<string>();
 
@@ -521,28 +717,30 @@ const useLineQuizSession = ({
 
         alreadyChosenAtPosition.add(moveAttempt.san);
 
-        // Reset the cycle after all branch moves at this position have been chosen once.
-        if (alreadyChosenAtPosition.size >= moveToLineIndices.size) {
+        if (alreadyChosenAtPosition.size >= moveToLeafHashes.size) {
           branchCycleChoices.delete(positionKey);
         } else {
           branchCycleChoices.set(positionKey, alreadyChosenAtPosition);
         }
       }
 
-      if (lineIndicesForMove.length > 0) {
-        const incompleteLineIndices = lineIndicesForMove.filter(
-          (lineIdx) => !completedLineIndicesRef.current.has(lineIdx)
-        );
-        const nextLineIdx = incompleteLineIndices[0] ?? lineIndicesForMove[0];
-        currentLineIdxRef.current = nextLineIdx;
-        movesRef.current = lineMovesByIndexRef.current[nextLineIdx] ?? [];
+      const selectedLeafHash = chooseLeafHash(leafHashesForMove, visitedLeafHashesRef.current);
+      if (selectedLeafHash) {
+        currentTargetLeafHashRef.current = selectedLeafHash;
       }
 
-      currentMoveIdxRef.current = nextMoveIndex;
-      setCurrentMoveIndex(nextMoveIndex);
-      syncNextMoveState(nextMoveIndex);
+      const occurrenceKey = toPgnMoveOccurrenceKey(positionKey, moveAttempt.san);
+      const nodeHash = treeIndexRef.current.occurrenceNodeHashByKey.get(occurrenceKey);
+      markVisitedNodeHash(nodeHash);
+
+      playedSanHistoryRef.current[nextMoveIndexInLine] = moveAttempt.san;
+      playedSanHistoryRef.current = playedSanHistoryRef.current.slice(0, nextMoveIndexInLine + 1);
+
+      currentMoveIdxRef.current = nextMoveIndexInLine;
+      setCurrentMoveIndex(nextMoveIndexInLine);
+      syncNextMoveState(nextMoveIndexInLine);
       setRecentAutoMoveOccurrenceKey(null);
-      furthestMoveIdxRef.current = Math.max(furthestMoveIdxRef.current, nextMoveIndex);
+      furthestMoveIdxRef.current = Math.max(furthestMoveIdxRef.current, nextMoveIndexInLine);
       setCurrFen(chessRef.current.fen());
       setMoveRejectionMessage(null);
 
@@ -557,7 +755,14 @@ const useLineQuizSession = ({
 
       return true;
     },
-    [advanceToNextLineOrComplete, isCurrentLineComplete, isUsersTurn, syncNextMoveState]
+    [
+      advanceToNextLineOrComplete,
+      getCurrentTargetPlan,
+      isCurrentLineComplete,
+      isUsersTurn,
+      markVisitedNodeHash,
+      syncNextMoveState,
+    ]
   );
 
   const stepForward = useCallback(() => {
@@ -581,8 +786,8 @@ const useLineQuizSession = ({
       return;
     }
 
-    const nextMoveIndex = currentMoveIdxRef.current + 1;
-    const nextMove = movesRef.current[nextMoveIndex];
+    const nextMoveIndexInLine = currentMoveIdxRef.current + 1;
+    const nextMove = playedSanHistoryRef.current[nextMoveIndexInLine];
     if (!nextMove) {
       return;
     }
@@ -592,9 +797,9 @@ const useLineQuizSession = ({
       return;
     }
 
-    currentMoveIdxRef.current = nextMoveIndex;
-    setCurrentMoveIndex(nextMoveIndex);
-    syncNextMoveState(nextMoveIndex);
+    currentMoveIdxRef.current = nextMoveIndexInLine;
+    setCurrentMoveIndex(nextMoveIndexInLine);
+    syncNextMoveState(nextMoveIndexInLine);
     setRecentAutoMoveOccurrenceKey(null);
     setCurrFen(chessRef.current.fen());
   }, [syncNextMoveState]);
@@ -649,8 +854,9 @@ const useLineQuizSession = ({
       return;
     }
 
-    const nextMoveIndex = currentMoveIdxRef.current + 1;
-    const nextMove = movesRef.current[nextMoveIndex];
+    const nextMoveIndexInLine = currentMoveIdxRef.current + 1;
+    const targetPlan = getCurrentTargetPlan();
+    const nextMove = targetPlan?.sanPath[nextMoveIndexInLine];
     if (!nextMove) {
       return;
     }
@@ -667,7 +873,7 @@ const useLineQuizSession = ({
       setCurrFen(chessRef.current.fen());
       setIsAutoPlaying(false);
     }, HINT_DURATION_MS);
-  }, [isUsersTurn, scheduleAction]);
+  }, [getCurrentTargetPlan, isUsersTurn, scheduleAction]);
 
   useEffect(() => {
     if (isPaused) {
@@ -676,7 +882,7 @@ const useLineQuizSession = ({
       return;
     }
 
-    if (movesRef.current.length === 0) {
+    if (!currentTargetLeafHashRef.current) {
       return;
     }
 
@@ -696,19 +902,21 @@ const useLineQuizSession = ({
   }, [clearAutoMoveHighlight]);
 
   useEffect(() => {
-    if (mainlines.length === 0) {
+    if (treeIndex.leafHashesInOrder.length === 0) {
       clearScheduledActions();
       chessRef.current.reset();
-      movesRef.current = [];
-      completedLineIndicesRef.current = new Set();
+      currentTargetLeafHashRef.current = null;
+      playedSanHistoryRef.current = [];
+      visitedLeafHashesRef.current = new Set();
+      visitedNodeHashesRef.current = new Set();
+      setVisitedNodeHashes([]);
       branchCycleChoicesRef.current = new Map();
-      pendingNextLineIdxRef.current = null;
-      currentLineIdxRef.current = 0;
+      pendingNextLeafHashRef.current = null;
       currentMoveIdxRef.current = -1;
+      furthestMoveIdxRef.current = -1;
       setCurrentMoveIndex(-1);
       setNextExpectedMoveSan(null);
       setNextMovePositionKey("0|");
-      furthestMoveIdxRef.current = -1;
       setIsCompleted(false);
       setIsTransitioningBetweenLines(false);
       setIsAwaitingLineAdvance(false);
@@ -718,14 +926,21 @@ const useLineQuizSession = ({
       return undefined;
     }
 
-    completedLineIndicesRef.current = new Set();
+    const initialVisitedNodeSet = new Set(initialVisitedNodeHashesRef.current);
+    visitedNodeHashesRef.current = initialVisitedNodeSet;
+    setVisitedNodeHashes(Array.from(initialVisitedNodeSet));
+    visitedLeafHashesRef.current = new Set(
+      treeIndex.leafHashesInOrder.filter((leafHash) => initialVisitedNodeSet.has(leafHash))
+    );
     branchCycleChoicesRef.current = new Map();
-    pendingNextLineIdxRef.current = null;
+    pendingNextLeafHashRef.current = null;
     setIsAwaitingLineAdvance(false);
-    setRemainingLineCount(lineMovesByIndexRef.current.length);
+    setRemainingLineCount(
+      Math.max(treeIndex.leafHashesInOrder.length - visitedLeafHashesRef.current.size, 0)
+    );
 
-    const firstLineIdx = getNextIncompleteLineIndex();
-    if (firstLineIdx === null) {
+    const firstLeafHash = getNextIncompleteLeafHash();
+    if (!firstLeafHash) {
       setIsCompleted(true);
       setIsTransitioningBetweenLines(false);
       setIsAwaitingLineAdvance(false);
@@ -735,21 +950,22 @@ const useLineQuizSession = ({
       return clearScheduledActions;
     }
 
-    startLineRef.current(firstLineIdx);
+    startLeafRef.current(firstLeafHash);
     return clearScheduledActions;
   }, [
     clearScheduledActions,
-    getNextIncompleteLineIndex,
+    getNextIncompleteLeafHash,
     isPlayingWhite,
     isSkipping,
-    mainlines,
     skipPlies,
+    treeIndex,
   ]);
 
   return {
     currFen,
     isAutoPlaying,
     isCompleted,
+    visitedNodeHashes,
     isTransitioningBetweenLines,
     isAwaitingLineAdvance,
     remainingLineCount,
@@ -763,6 +979,7 @@ const useLineQuizSession = ({
     stepForward,
     stepBackward,
     showHint,
+    restartSession,
   };
 };
 

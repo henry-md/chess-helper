@@ -50,14 +50,26 @@ const pgnSchema = new mongoose.Schema({
     default: false,
   },
   gameProgress: {
-    visitedNodeHashes: [String]
+    visitedNodeHashes: {
+      type: [String],
+      default: [],
+    },
   },
   gameSettings: {
-    isPlayingWhite: Boolean,
-    isSkipping: Boolean,
+    isPlayingWhite: {
+      type: Boolean,
+      default: true,
+    },
+    isSkipping: {
+      type: Boolean,
+      default: false,
+    },
   },
   gameMetadata: {
-    fenBeforeFirstBranch: String,
+    fenBeforeFirstBranch: {
+      type: String,
+      default: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    },
   },
   createdAt: {
     type: Date,

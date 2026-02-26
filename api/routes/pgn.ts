@@ -14,6 +14,24 @@ import { flatten } from 'flat';
 import { IPgnDocument } from "../models/Pgn";
 
 const pgnRouter = Router();
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+const normalizePgnDocument = (pgn: IPgnDocument) => {
+  const pgnObject = pgn.toObject();
+  return {
+    ...pgnObject,
+    gameProgress: {
+      visitedNodeHashes: pgnObject.gameProgress?.visitedNodeHashes ?? [],
+    },
+    gameSettings: {
+      isPlayingWhite: pgnObject.gameSettings?.isPlayingWhite ?? true,
+      isSkipping: pgnObject.gameSettings?.isSkipping ?? false,
+    },
+    gameMetadata: {
+      fenBeforeFirstBranch: pgnObject.gameMetadata?.fenBeforeFirstBranch ?? START_FEN,
+    },
+  };
+};
 
 pgnRouter.get("/test-pgn", async (req, res) => {
   res.status(200).json({ message: "Hello Pgn", success: true });
@@ -34,7 +52,7 @@ pgnRouter.get(
         success: false,
       });
     }
-    res.status(200).json({ pgn, success: true });
+    res.status(200).json({ pgn: normalizePgnDocument(pgn), success: true });
   }) as RequestHandler
 );
 
@@ -42,7 +60,7 @@ pgnRouter.get("/pgns", authGuard, async (req, res) => {
   try {
     const pgns = await Pgn.find({ userId: req.user?._id });
     logger.debug(`Found ${pgns.length} PGNs for user ${req.user?.username || "Unknown"}`);
-    res.status(200).json({ pgns, success: true });
+    res.status(200).json({ pgns: pgns.map(normalizePgnDocument), success: true });
   } catch (error) {
     logger.error(`Error fetching PGNs for user ${req.user?.username || "Unknown"}: ${error}`);
     res.status(500).json({ message: "Error fetching PGNs", success: false });
@@ -79,11 +97,7 @@ pgnRouter.post(
         notes,
         isPublic,
         gameProgress: {
-          visitedBranchingNodes: [],
-          currentNode: {
-            move: "",
-            fen: "",
-          },
+          visitedNodeHashes: [],
         },
         gameSettings: {
           isPlayingWhite: true,
@@ -100,7 +114,7 @@ pgnRouter.post(
       res.status(201).json({
         message: "PGN added successfully",
         success: true,
-        pgn: newPgn,
+        pgn: normalizePgnDocument(newPgn),
       });
     } catch (error) {
       logger.error(`Error adding PGN: ${error}`);
@@ -161,7 +175,7 @@ pgnRouter.patch(
       res.status(200).json({
         message: "PGN updated successfully",
         success: true,
-        pgn: updatedPgn,
+        pgn: normalizePgnDocument(updatedPgn),
       });
     } catch (error) {
       res.status(500).json({ message: "Error updating PGN", success: false });

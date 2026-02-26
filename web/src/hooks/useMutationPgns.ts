@@ -1,10 +1,10 @@
 import { API_URL } from "@/env";
 import { toast } from "react-toastify";
-import { addPgnDict, updatePgnDict, deletePgnFromDict, $pgnDict } from "@/store/pgn";
+import { addPgnDict, updatePgnDict, deletePgnFromDict, $pgn, $pgnDict, setPgn } from "@/store/pgn";
 import { getAuthHeader } from "@/utils/auth";
 import logger from "@/utils/logger";
 import { formatError } from "@/utils/error";
-import { IPgn, StoredPgn } from "@/lib/types";
+import { StoredPgn } from "@/lib/types";
 
 type PgnUpdate = {
   title?: string;
@@ -67,7 +67,7 @@ function useMutationPgns() {
   const updatePgnContent = async (
     pgnId: string,
     updates: PgnUpdate
-  ) => {
+  ): Promise<boolean> => {
     logger.debug(`[useMutationPgns] Updating PGN ${pgnId} with ${JSON.stringify(updates)}`);
     try {
       const response = await fetch(`${API_URL}/pgn/${pgnId}`, {
@@ -79,13 +79,22 @@ function useMutationPgns() {
         body: JSON.stringify(updates),
       });
       const res = await response.json();
-      console.log('res', res);
+      if (!response.ok) {
+        toast.error(formatError(res));
+        return false;
+      }
+
       const pgn: StoredPgn = res.pgn;
       updatePgnDict(pgn);
+      if ($pgn.get()?._id === pgn._id) {
+        setPgn(pgn);
+      }
       // triggerPgnsRefresh();
+      return true;
     } catch (error) {
       console.error(error);
       toast.error("Error updating PGN");
+      return false;
     }
   }
 

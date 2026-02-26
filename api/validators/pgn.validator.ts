@@ -1,10 +1,5 @@
 import Joi from "joi";
 
-const nodeSchema = Joi.object({
-  move: Joi.string().required(),
-  fen: Joi.string().required(),
-});
-
 export const createPgnSchema = Joi.object({
   title: Joi.string().required().trim().min(1).max(100),
   moveText: Joi.string().required().trim(),
@@ -22,8 +17,7 @@ export const updatePgnSchema = Joi.object({
   notes: Joi.string().allow("").trim(),
   isPublic: Joi.boolean(),
   gameProgress: Joi.object({
-    visitedBranchingNodes: Joi.array().items(nodeSchema),
-    currentNode: nodeSchema,
+    visitedNodeHashes: Joi.array().items(Joi.string()),
   }),
   gameSettings: Joi.object({
     isPlayingWhite: Joi.boolean(),

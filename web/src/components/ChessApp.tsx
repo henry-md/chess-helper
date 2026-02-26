@@ -11,6 +11,7 @@ import { StoredPgn } from '@/lib/types';
 import { $pgn } from '@/store/pgn';
 import { toast } from 'react-toastify';
 import useLineQuizSession from "@/hooks/game/useLineQuizSession";
+import useMutationPgns from "@/hooks/useMutationPgns";
 import LessonCompleteCelebration from "@/components/LessonCompleteCelebration";
 import LineTransitionCelebration from "@/components/LineTransitionCelebration";
 import TutorialCoachmarks from "@/components/TutorialCoachmarks";
@@ -110,6 +111,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   const pgn: StoredPgn | null = useStore($pgn);
   
   if (!pgn) return <div>Loading...</div>;
+  const { updatePgnContent } = useMutationPgns();
   const spotlightMaskId = useId().replace(/:/g, "");
 
   const boardRef = useRef<HTMLDivElement>(null);
@@ -151,10 +153,26 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
   const [isMoveHighlightingEnabled, setIsMoveHighlightingEnabled] = useState(true);
   const [highlightedPgnTokenRect, setHighlightedPgnTokenRect] = useState<ViewportRect | null>(null);
   const latestBranchOccurrenceKeyRef = useRef<string | null>(null);
+  const updatePgnContentRef = useRef(updatePgnContent);
+  const persistedVisitedNodeHashesKeyRef = useRef("");
+  const hasResetPersistedOnCompleteRef = useRef(false);
+  const initialVisitedNodeHashes = useMemo(
+    () => (isTutorial ? [] : pgn.gameProgress?.visitedNodeHashes ?? []),
+    [isTutorial, pgn.gameProgress?.visitedNodeHashes]
+  );
+  const normalizedInitialVisitedNodeHashes = useMemo(
+    () => Array.from(new Set(initialVisitedNodeHashes.filter(Boolean))).sort(),
+    [initialVisitedNodeHashes]
+  );
+  const normalizedVisitedNodeHashesKey = useMemo(
+    () => normalizedInitialVisitedNodeHashes.join("|"),
+    [normalizedInitialVisitedNodeHashes]
+  );
   const {
     currFen,
     isAutoPlaying,
     isCompleted,
+    visitedNodeHashes,
     isTransitioningBetweenLines,
     isAwaitingLineAdvance,
     remainingLineCount,
@@ -168,15 +186,101 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     showHint,
     stepBackward,
     stepForward,
+    restartSession,
   } = useLineQuizSession({
     moveText: pgn.moveText,
     isPlayingWhite,
     isSkipping,
+    initialVisitedNodeHashes: normalizedInitialVisitedNodeHashes,
     isPaused: isPracticePopupVisible || isBranchPopupVisible,
     randomizeOpponentBranchMoves: isTutorial,
     manualLineAdvance: isTutorial,
     onSessionComplete: () => toast.success("Game completed!"),
   });
+  const normalizedVisitedNodeHashes = useMemo(
+    () => Array.from(new Set(visitedNodeHashes.filter(Boolean))).sort(),
+    [visitedNodeHashes]
+  );
+  const normalizedVisitedNodeHashesProgressKey = useMemo(
+    () => normalizedVisitedNodeHashes.join("|"),
+    [normalizedVisitedNodeHashes]
+  );
+
+  useEffect(() => {
+    updatePgnContentRef.current = updatePgnContent;
+  }, [updatePgnContent]);
+
+  useEffect(() => {
+    persistedVisitedNodeHashesKeyRef.current = normalizedVisitedNodeHashesKey;
+  }, [normalizedVisitedNodeHashesKey, pgn._id]);
+
+  useEffect(() => {
+    if (isTutorial || !pgn._id || pgn._id === "tutorial") {
+      return;
+    }
+
+    if (isCompleted) {
+      return;
+    }
+
+    if (normalizedVisitedNodeHashesProgressKey === persistedVisitedNodeHashesKeyRef.current) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        const didPersist = await updatePgnContentRef.current(pgn._id, {
+          gameProgress: {
+            visitedNodeHashes: normalizedVisitedNodeHashes,
+          },
+        });
+        if (didPersist) {
+          persistedVisitedNodeHashesKeyRef.current = normalizedVisitedNodeHashesProgressKey;
+        }
+      })();
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    isCompleted,
+    isTutorial,
+    normalizedVisitedNodeHashes,
+    normalizedVisitedNodeHashesProgressKey,
+    pgn._id,
+  ]);
+
+  useEffect(() => {
+    if (isTutorial || !pgn._id || pgn._id === "tutorial") {
+      hasResetPersistedOnCompleteRef.current = false;
+      return;
+    }
+
+    if (!isCompleted) {
+      hasResetPersistedOnCompleteRef.current = false;
+      return;
+    }
+
+    if (hasResetPersistedOnCompleteRef.current) {
+      return;
+    }
+    hasResetPersistedOnCompleteRef.current = true;
+
+    void (async () => {
+      const didPersist = await updatePgnContentRef.current(pgn._id, {
+        gameProgress: {
+          visitedNodeHashes: [],
+        },
+      });
+
+      if (didPersist) {
+        persistedVisitedNodeHashesKeyRef.current = "";
+      } else {
+        hasResetPersistedOnCompleteRef.current = false;
+      }
+    })();
+  }, [isCompleted, isTutorial, pgn._id]);
 
   const tutorialMainlineMoves = useMemo<string[][]>(() => {
     if (!isTutorial) {
@@ -633,6 +737,23 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
     setBranchPopupPositionKey(null);
   }, []);
 
+  const handlePlayAgain = useCallback(() => {
+    hasResetPersistedOnCompleteRef.current = false;
+    if (!isTutorial && pgn._id && pgn._id !== "tutorial") {
+      void (async () => {
+        const didPersist = await updatePgnContentRef.current(pgn._id, {
+          gameProgress: {
+            visitedNodeHashes: [],
+          },
+        });
+        if (didPersist) {
+          persistedVisitedNodeHashesKeyRef.current = "";
+        }
+      })();
+    }
+    restartSession();
+  }, [isTutorial, pgn._id, restartSession]);
+
   useEffect(() => {
     if (!shouldPromptPracticeFromPgn) {
       return;
@@ -900,6 +1021,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
           <LessonCompleteCelebration
             isCompleted={isCompleted}
             showAnimation={showCelebrationAnimation}
+            onPlayAgain={handlePlayAgain}
           />
           <LineTransitionCelebration isVisible={isTransitioningBetweenLines && !isCompleted} />
           {isTutorial && !tutorialTourComplete && (
@@ -1167,6 +1289,7 @@ function ChessApp({ isTutorial = false }: ChessAppProps) {
               {moveRejectionMessage}
             </div>
           )}
+
         </div>
       </div>
       {pgn && !isTutorial && (

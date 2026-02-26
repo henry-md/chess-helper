@@ -3,6 +3,7 @@ import { useMemo } from "react";
 type LessonCompleteCelebrationProps = {
   isCompleted: boolean;
   showAnimation: boolean;
+  onPlayAgain?: () => void;
 };
 
 const CONFETTI_COLORS = [
@@ -19,6 +20,7 @@ const CONFETTI_COUNT = 42;
 const LessonCompleteCelebration = ({
   isCompleted,
   showAnimation,
+  onPlayAgain,
 }: LessonCompleteCelebrationProps) => {
   const pieces = useMemo(() => {
     return Array.from({ length: CONFETTI_COUNT }, (_, index) => {
@@ -67,9 +69,14 @@ const LessonCompleteCelebration = ({
         ))}
 
       {isCompleted && (
-        <div className="lesson-complete-banner">
+        <div className="lesson-complete-banner pointer-events-auto">
           <p className="lesson-complete-title">Lesson Complete</p>
           <p className="lesson-complete-subtitle">Every line in this PGN has been covered.</p>
+          {onPlayAgain && (
+            <button type="button" className="lesson-complete-restart-btn" onClick={onPlayAgain}>
+              Play again
+            </button>
+          )}
         </div>
       )}
     </div>
