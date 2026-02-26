@@ -17,7 +17,7 @@ const Navbar = () => {
           <button
             type="button"
             className={navTabClass}
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/tutorial")}
           >
             Tutorial
           </button>

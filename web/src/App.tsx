@@ -1,4 +1,4 @@
-import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import "react-toastify/dist/ReactToastify.css";
 import { useEffect } from "react";
 import useAuth from "@/hooks/useAuth";
@@ -43,7 +43,8 @@ function App() {
   return (
     <div className="App">
       <Routes>
-        <Route path="/" element={<Tutorial />} />
+        <Route path="/" element={<Navigate to="/tutorial" replace />} />
+        <Route path="/tutorial" element={<Tutorial />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
