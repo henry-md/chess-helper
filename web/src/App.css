@@ -111,6 +111,12 @@
   --chess-aside-height: min(80vh, 70vw);
 }
 
+/* react-chessboard drag layer uses position: fixed; filtered ancestors can offset it */
+.chess-board-shell {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .lesson-celebration-layer {
   z-index: 20;
 }
