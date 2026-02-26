@@ -66,6 +66,7 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
 
   const [stepIdx, setStepIdx] = useState(0);
   const [isOpen, setIsOpen] = useState(true);
+  const [isWhatIsAppPopupOpen, setIsWhatIsAppPopupOpen] = useState(false);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
 
   const activeStep = steps[stepIdx];
@@ -127,6 +128,20 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
       <div className="tutorial-tooltip-card" style={{ top: tooltipTop, left: tooltipLeft, width: CARD_WIDTH }}>
         <p className="tutorial-tooltip-title">{activeStep.title}</p>
         <p className="tutorial-tooltip-body">{activeStep.body}</p>
+        {stepIdx === 0 && (
+          <button
+            type="button"
+            className="tutorial-what-app-btn"
+            onClick={() => setIsWhatIsAppPopupOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={isWhatIsAppPopupOpen}
+          >
+            <span className="tutorial-what-app-icon" aria-hidden="true">
+              ?
+            </span>
+            What what tf is this app?
+          </button>
+        )}
 
         <div className="tutorial-tooltip-footer">
           <span className="tutorial-tooltip-step">
@@ -165,6 +180,26 @@ const TutorialCoachmarks = ({ targets, onComplete }: TutorialCoachmarksProps) =>
           </div>
         </div>
       </div>
+
+      {isWhatIsAppPopupOpen && (
+        <div className="tutorial-help-popup-layer" role="presentation">
+          <div className="tutorial-help-popup-card" role="dialog" aria-modal="true" aria-label="What this app is">
+            <p className="tutorial-help-popup-title">Wait what tf is this app?</p>
+            <p className="tutorial-help-popup-body">
+              This app helps people practice chess opening theory.
+            </p>
+            <p className="tutorial-help-popup-body">
+              As you get better at chess, opening theory becomes more and more important. The most cited quota suggests advanced players spend 25% of their time on openings, 25% on endgames, and 50% on tactics. As important as openings are, studying them is logistically difficult.
+            </p>
+            <p className="tutorial-help-popup-body">  
+               PGN (Portable Game Notation) is the standard way to record chess moves and variations. PGN files are easy to create on desktop apps like Stockfish or Chessbase. However, quizzing yourself on that pgn notation remains difficult. This app is meant as a tool to help people practice those PGN documents they've already created, to help solidify the chess opening theory they've decided on learning.
+            </p>
+            <button type="button" className="tutorial-help-popup-btn" onClick={() => setIsWhatIsAppPopupOpen(false)}>
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

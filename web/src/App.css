@@ -178,6 +178,34 @@ button.w-full {
   color: #78350f;
 }
 
+.tutorial-what-app-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 auto 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(146, 64, 14, 0.38);
+  background: rgba(255, 248, 233, 0.95);
+  color: #7c2d12;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 9px;
+}
+
+.tutorial-what-app-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  border: 1px solid rgba(146, 64, 14, 0.45);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
 .tutorial-tooltip-footer {
   display: flex;
   align-items: center;
@@ -233,6 +261,50 @@ button.w-full {
   font-size: 0.73rem;
   font-weight: 800;
   padding: 7px 11px;
+}
+
+.tutorial-help-popup-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 42;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(38, 17, 5, 0.45);
+  padding: 16px;
+}
+
+.tutorial-help-popup-card {
+  width: min(430px, 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(146, 64, 14, 0.48);
+  background: rgba(255, 252, 245, 0.99);
+  box-shadow: 0 12px 32px rgba(49, 24, 8, 0.3);
+  padding: 14px 14px 12px;
+}
+
+.tutorial-help-popup-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #7c2d12;
+}
+
+.tutorial-help-popup-body {
+  margin: 8px 0 12px;
+  font-size: 0.81rem;
+  line-height: 1.35rem;
+  color: #78350f;
+}
+
+.tutorial-help-popup-btn {
+  border: 1px solid rgba(146, 64, 14, 0.42);
+  border-radius: 8px;
+  background: #b45309;
+  color: #fff8f1;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 11px;
 }
 
 .tutorial-pawn-spotlight-layer {
